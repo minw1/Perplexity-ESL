@@ -175,6 +175,8 @@ def _special_n_1(state, x_binding):
 
     def unbound_variable():
         yield "special"
+        yield "soup"
+        yield "salad"
 
     yield from combinatorial_style_predication_1(state, x_binding, bound_variable, unbound_variable)
 
@@ -348,28 +350,24 @@ def _have_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
 @Predication(vocabulary, names=["_be_v_id"])
 def _be_v_id(state, e_introduced_binding, x_actor_binding, x_object_binding):
     def criteria_bound(x_actor_binding, x_object_binding):
-        if "be" in state.rel.keys():
-            if (x_actor_binding, x_object_binding) in state.rel["be"]:
-                return True
-
-        else:
+        if "be" not in state.rel.keys():
             report_error(["verbDoesntApply", "large", x_actor_binding.variable.name])
             return False
 
-    def havers_of_obj(x_object_binding):
+        else:
+            if (x_actor_binding, x_object_binding) in state.rel["be"] or (x_object_binding, x_actor_binding) in state.rel["be"]:
+                return True
+
+    def unbound(x_object_binding):
         if "be" in state.rel.keys():
             for i in state.rel["be"]:
                 if i[1] == x_object_binding:
                     yield i[0]
-
-    def had_of_actor(x_actor_binding):
-        if "be" in state.rel.keys():
-            for i in state.rel["be"]:
-                if i[0] == x_actor_binding:
+                if i[0] == x_object_binding:
                     yield i[1]
 
-    yield from in_style_predication_2(state, x_actor_binding, x_object_binding, criteria_bound, havers_of_obj,
-                                      had_of_actor)
+    yield from in_style_predication_2(state, x_actor_binding, x_object_binding, criteria_bound, unbound,
+                                      unbound)
 
 
 # Generates all the responses that predications can
@@ -402,7 +400,7 @@ def generate_custom_message(tree_info, error_term):
 
 def reset():
     # return State([])
-    initial_state = WorldState({}, ["pizza", "computer"])
+    initial_state = WorldState({}, ["pizza", "computer", "salad", "soup", "steak", "ham", "meat", "special"])
     initial_state = initial_state.add_rel("want", "computer", "pizza")
     initial_state = initial_state.add_rel("want", "computer", "ham")
     initial_state = initial_state.add_rel("want", "user", "table")
