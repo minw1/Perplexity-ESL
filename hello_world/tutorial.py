@@ -3,6 +3,7 @@ import copy
 from perplexity.execution import report_error
 from perplexity.generation import english_for_delphin_variable
 from perplexity.predications import combinatorial_style_predication_1, in_style_predication_2, lift_style_predication_2
+from perplexity.response import RespondOperation
 from perplexity.state import State
 from perplexity.system_vocabulary import system_vocabulary
 from perplexity.user_interface import UserInterface
@@ -73,7 +74,7 @@ def pron(state, x_who_binding):
 
 @Predication(vocabulary, names=["_pizza_n_1"])
 def _pizza_n_1(state, x_binding):
-    print(state.rel)
+    #print(state.rel)
 
     def bound_variable(value):
         if value in ["pizza"]:
@@ -129,6 +130,51 @@ def _ham_n_1(state, x_binding):
 
     def unbound_variable():
         yield "ham"
+
+    yield from combinatorial_style_predication_1(state, x_binding, bound_variable, unbound_variable)
+
+
+@Predication(vocabulary, names=["_soup_n_1"])
+def _soup_n_1(state, x_binding):
+    def bound_variable(value):
+        if value in ["soup"]:
+            return True
+        else:
+            report_error(["notAThing", x_binding.value, x_binding.variable.name])
+            return False
+
+    def unbound_variable():
+        yield "soup"
+
+    yield from combinatorial_style_predication_1(state, x_binding, bound_variable, unbound_variable)
+
+
+@Predication(vocabulary, names=["_salad_n_1"])
+def _salad_n_1(state, x_binding):
+    def bound_variable(value):
+        if value in ["salad"]:
+            return True
+        else:
+            report_error(["notAThing", x_binding.value, x_binding.variable.name])
+            return False
+
+    def unbound_variable():
+        yield "salad"
+
+    yield from combinatorial_style_predication_1(state, x_binding, bound_variable, unbound_variable)
+
+
+@Predication(vocabulary, names=["_special_n_1"])
+def _special_n_1(state, x_binding):
+    def bound_variable(value):
+        if value in ["salad", "soup"]:
+            return True
+        else:
+            report_error(["notAThing", x_binding.value, x_binding.variable.name])
+            return False
+
+    def unbound_variable():
+        yield "special"
 
     yield from combinatorial_style_predication_1(state, x_binding, bound_variable, unbound_variable)
 
@@ -255,9 +301,19 @@ def _want_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
                                                 wanters_of_obj, wanted_of_actor):
         x_act = success_state.get_binding(x_actor_binding.variable.name).value[0]
         x_obj = success_state.get_binding(x_object_binding.variable.name).value[0]
-        if x_act == "user" and x_obj == "table":
-            operation = AddRelOp(("at", "user", "table"))
-            yield success_state.record_operations([operation])
+        if x_act == "user":
+            if x_obj == "table":
+                operation = AddRelOp(("at", "user", "table"))
+                yield success_state.record_operations([operation,RespondOperation("Right this way!\nThe robot shows you to a wooden table")])
+            else:
+                if "at" in success_state.rel.keys():
+                    if ("user","table") in success_state.rel["at"]:
+                        yield success_state.record_operations([RespondOperation("Coming right up!")])
+                    else:
+                        yield success_state.record_operations([RespondOperation("Sorry, you need to be seated to order.")])
+                else:
+                    yield success_state.record_operations([RespondOperation("Sorry, you need to be seated to order.")])
+
         else:
             yield success_state
 
@@ -273,7 +329,7 @@ def _have_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
             report_error(["verbDoesntApply", "large", x_actor_binding.variable.name])
             return False
 
-    def haveers_of_obj(x_object_binding):
+    def havers_of_obj(x_object_binding):
         if "have" in state.rel.keys():
             for i in state.rel["have"]:
                 if i[1] == x_object_binding:
@@ -285,7 +341,34 @@ def _have_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
                 if i[0] == x_actor_binding:
                     yield i[1]
 
-    yield from in_style_predication_2(state, x_actor_binding, x_object_binding, criteria_bound, haveers_of_obj,
+    yield from in_style_predication_2(state, x_actor_binding, x_object_binding, criteria_bound, havers_of_obj,
+                                      had_of_actor)
+
+
+@Predication(vocabulary, names=["_be_v_id"])
+def _be_v_id(state, e_introduced_binding, x_actor_binding, x_object_binding):
+    def criteria_bound(x_actor_binding, x_object_binding):
+        if "be" in state.rel.keys():
+            if (x_actor_binding, x_object_binding) in state.rel["be"]:
+                return True
+
+        else:
+            report_error(["verbDoesntApply", "large", x_actor_binding.variable.name])
+            return False
+
+    def havers_of_obj(x_object_binding):
+        if "be" in state.rel.keys():
+            for i in state.rel["be"]:
+                if i[1] == x_object_binding:
+                    yield i[0]
+
+    def had_of_actor(x_actor_binding):
+        if "be" in state.rel.keys():
+            for i in state.rel["be"]:
+                if i[0] == x_actor_binding:
+                    yield i[1]
+
+    yield from in_style_predication_2(state, x_actor_binding, x_object_binding, criteria_bound, havers_of_obj,
                                       had_of_actor)
 
 
@@ -323,6 +406,7 @@ def reset():
     initial_state = initial_state.add_rel("want", "computer", "pizza")
     initial_state = initial_state.add_rel("want", "computer", "ham")
     initial_state = initial_state.add_rel("want", "user", "table")
+    initial_state = initial_state.add_rel("want", "user", "steak")
     initial_state = initial_state.add_rel("on", "steak", "menu")
     initial_state = initial_state.add_rel("on", "pizza", "menu")
     initial_state = initial_state.add_rel("on", "ham", "menu")
@@ -332,6 +416,8 @@ def reset():
     initial_state = initial_state.add_rel("have", "computer", "ham")
     initial_state = initial_state.add_rel("have", "computer", "steak")
     initial_state = initial_state.add_rel("have", "computer", "pizza")
+    initial_state = initial_state.add_rel("be", "soup", "special")
+    initial_state = initial_state.add_rel("be", "salad", "special")
     return initial_state
 
 
