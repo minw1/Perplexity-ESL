@@ -12,7 +12,7 @@ import perplexity.messages
 
 vocabulary = system_vocabulary()
 
-#{want:[(computer,pizza),(jenny,marbles)_]}
+
 class WorldState(State):
     def __init__(self, relations, entities):
         super().__init__([])
@@ -31,11 +31,22 @@ class WorldState(State):
             newrel[relname] += [(first, second)]
         return WorldState(newrel, self.ent)
 
-class addRelOp(object):
+    def _mutate_add_rel(self, relname, first, second):
+        newrel = copy.deepcopy(self.rel)
+        if not relname in newrel:
+            newrel[relname] = [(first, second)]
+        else:
+            newrel[relname] += [(first, second)]
+        self.rel = newrel
+
+
+class AddRelOp(object):
     def __init__(self, rel):
         self.toAdd = rel
+
     def apply_to(self, state):
-        state.add_rel(self.toAdd[0],self.toAdd[1],self.toAdd[2])
+        state._mutate_add_rel(self.toAdd[0], self.toAdd[1], self.toAdd[2])
+
 
 @Predication(vocabulary, names=["pron"])
 def pron(state, x_who_binding):
@@ -63,6 +74,7 @@ def pron(state, x_who_binding):
 @Predication(vocabulary, names=["_pizza_n_1"])
 def _pizza_n_1(state, x_binding):
     print(state.rel)
+
     def bound_variable(value):
         if value in ["pizza"]:
             return True
@@ -74,6 +86,7 @@ def _pizza_n_1(state, x_binding):
         yield "pizza"
 
     yield from combinatorial_style_predication_1(state, x_binding, bound_variable, unbound_variable)
+
 
 @Predication(vocabulary, names=["_steak_n_1"])
 def _steak_n_1(state, x_binding):
@@ -89,6 +102,7 @@ def _steak_n_1(state, x_binding):
 
     yield from combinatorial_style_predication_1(state, x_binding, bound_variable, unbound_variable)
 
+
 @Predication(vocabulary, names=["_table_n_1"])
 def _table_n_1(state, x_binding):
     def bound_variable(value):
@@ -103,6 +117,7 @@ def _table_n_1(state, x_binding):
 
     yield from combinatorial_style_predication_1(state, x_binding, bound_variable, unbound_variable)
 
+
 @Predication(vocabulary, names=["_ham_n_1"])
 def _ham_n_1(state, x_binding):
     def bound_variable(value):
@@ -116,6 +131,8 @@ def _ham_n_1(state, x_binding):
         yield "ham"
 
     yield from combinatorial_style_predication_1(state, x_binding, bound_variable, unbound_variable)
+
+
 @Predication(vocabulary, names=["_meat_n_1"])
 def _meat_n_1(state, x_binding):
     def bound_variable(value):
@@ -132,10 +149,11 @@ def _meat_n_1(state, x_binding):
 
     yield from combinatorial_style_predication_1(state, x_binding, bound_variable, unbound_variable)
 
+
 @Predication(vocabulary, names=["_food_n_1"])
 def _food_n_1(state, x_binding):
     def bound_variable(value):
-        if value in ["meat", "steak", "ham","food","pizza"]:
+        if value in ["meat", "steak", "ham", "food", "pizza"]:
             return True
         else:
             report_error(["notAThing", x_binding.value, x_binding.variable.name])
@@ -170,7 +188,7 @@ def _menu_n_1(state, x_binding):
 def on_p_loc(state, e_introduced_binding, x_actor_binding, x_location_binding):
     def check_item_on_item(item1, item2):
         if "on" in state.rel.keys():
-            return (item1,item2) in state.rel["on"]
+            return (item1, item2) in state.rel["on"]
         else:
             report_error(["notOn"])
 
@@ -210,6 +228,7 @@ def large_a_1(state, e_introduced_binding, x_target_binding):
 
     yield from combinatorial_style_predication_1(state, x_target_binding, criteria_bound, unbound_values)
 
+
 @Predication(vocabulary, names=["_want_v_1"])
 def _want_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
     def criteria_bound(x_actor_binding, x_object_binding):
@@ -225,17 +244,19 @@ def _want_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
             for i in state.rel["want"]:
                 if i[1] == x_object_binding:
                     yield i[0]
+
     def wanted_of_actor(x_actor_binding):
         if "want" in state.rel.keys():
             for i in state.rel["want"]:
                 if i[0] == x_actor_binding:
                     yield i[1]
 
-    for success_state in in_style_predication_2(state, x_actor_binding, x_object_binding, criteria_bound, wanters_of_obj, wanted_of_actor):
+    for success_state in in_style_predication_2(state, x_actor_binding, x_object_binding, criteria_bound,
+                                                wanters_of_obj, wanted_of_actor):
         x_act = success_state.get_binding(x_actor_binding.variable.name).value[0]
         x_obj = success_state.get_binding(x_object_binding.variable.name).value[0]
         if x_act == "user" and x_obj == "table":
-            operation = addRelOp(("at", "user", "table"))
+            operation = AddRelOp(("at", "user", "table"))
             yield success_state.record_operations([operation])
         else:
             yield success_state
@@ -257,13 +278,15 @@ def _have_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
             for i in state.rel["have"]:
                 if i[1] == x_object_binding:
                     yield i[0]
+
     def had_of_actor(x_actor_binding):
         if "have" in state.rel.keys():
             for i in state.rel["have"]:
                 if i[0] == x_actor_binding:
                     yield i[1]
 
-    yield from in_style_predication_2(state, x_actor_binding, x_object_binding, criteria_bound, haveers_of_obj, had_of_actor)
+    yield from in_style_predication_2(state, x_actor_binding, x_object_binding, criteria_bound, haveers_of_obj,
+                                      had_of_actor)
 
 
 # Generates all the responses that predications can
@@ -295,9 +318,9 @@ def generate_custom_message(tree_info, error_term):
 
 
 def reset():
-    #return State([])
+    # return State([])
     initial_state = WorldState({}, ["pizza", "computer"])
-    initial_state = initial_state.add_rel("want","computer","pizza")
+    initial_state = initial_state.add_rel("want", "computer", "pizza")
     initial_state = initial_state.add_rel("want", "computer", "ham")
     initial_state = initial_state.add_rel("want", "user", "table")
     initial_state = initial_state.add_rel("on", "steak", "menu")
@@ -310,6 +333,7 @@ def reset():
     initial_state = initial_state.add_rel("have", "computer", "steak")
     initial_state = initial_state.add_rel("have", "computer", "pizza")
     return initial_state
+
 
 def hello_world():
     user_interface = UserInterface(reset, vocabulary)
