@@ -120,6 +120,9 @@ def user_wants(state, wanted):
                     return [RespondOperation("Um... You're at a table")]
             return [AddRelOp(("user", "at", "table")),
                     RespondOperation("Right this way!\nThe robot shows you to a wooden table")]
+    for i in all_instances_and_spec(state,"menu"):
+        if i == wanted:
+            return [RespondOperation("Here's the menu...\n...menu goes here...")]
 
 
 @Predication(vocabulary, names=["pron"])
@@ -258,7 +261,7 @@ def _special_n_1(state, x_binding):
 
 
 def handles_noun(noun_lemma):
-    return noun_lemma in ["special"]
+    return noun_lemma in ["special", "food", "menu"]
 
 
 # Simple example of using match_all that doesn't do anything except
@@ -281,42 +284,6 @@ def match_all_n(noun_type, state, x_binding):
 @Predication(vocabulary, names=["match_all_n"], matches_lemma_function=handles_noun)
 def match_all_n_i(noun_type, state, x_binding, i_binding):
     return match_all_n(noun_type, state, x_binding)
-
-
-@Predication(vocabulary, names=["_meat_n_1"])
-def _meat_n_1(state, x_binding):
-    def bound_variable(value):
-        if value in ["meat", "steak", "ham"]:
-            return True
-        else:
-            report_error(["notAThing", x_binding.value, x_binding.variable.name])
-            return False
-
-    def unbound_variable():
-        yield "ham"
-        yield "steak"
-        yield "meat"
-
-    yield from combinatorial_style_predication_1(state, x_binding, bound_variable, unbound_variable)
-
-
-@Predication(vocabulary, names=["_food_n_1"])
-def _food_n_1(state, x_binding):
-    def bound_variable(value):
-        if value in ["meat", "steak", "ham", "food", "pizza"]:
-            return True
-        else:
-            report_error(["notAThing", x_binding.value, x_binding.variable.name])
-            return False
-
-    def unbound_variable():
-        yield "ham"
-        yield "steak"
-        yield "meat"
-        yield "pizza"
-        yield "food"
-
-    yield from combinatorial_style_predication_1(state, x_binding, bound_variable, unbound_variable)
 
 
 @Predication(vocabulary, names=["_menu_n_1"])
@@ -517,16 +484,18 @@ def generate_custom_message(tree_info, error_term):
 def reset():
     # return State([])
     # initial_state = WorldState({}, ["pizza", "computer", "salad", "soup", "steak", "ham", "meat","special"])
-    initial_state = WorldState({}, ["salad", "soup", "special", "salad1", "table"])
+    initial_state = WorldState({}, ["salad", "soup", "special", "salad1", "table", "menu"])
 
-    initial_state = initial_state.add_rel("special", "specializes", "thing")
-    initial_state = initial_state.add_rel("soup", "specializes", "thing")
-    initial_state = initial_state.add_rel("salad", "specializes", "thing")
+    initial_state = initial_state.add_rel("special", "specializes", "food")
     initial_state = initial_state.add_rel("table", "specializes", "thing")
+    initial_state = initial_state.add_rel("menu", "specializes", "thing")
+    initial_state = initial_state.add_rel("food", "specializes", "thing")
 
     initial_state = initial_state.add_rel("salad1", "instanceOf", "salad")
     initial_state = initial_state.add_rel("table1", "instanceOf", "table")
     initial_state = initial_state.add_rel("soup1", "instanceOf", "soup")
+    initial_state = initial_state.add_rel("menu1", "instanceOf", "menu")
+
     initial_state = initial_state.add_rel("soup", "specializes", "special")
     initial_state = initial_state.add_rel("salad", "specializes", "special")
     initial_state = initial_state.add_rel("computer", "have", "salad1")
