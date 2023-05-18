@@ -41,6 +41,7 @@ class WorldState(State):
             newrel[relname] += [(first, second)]
         self.rel = newrel
 
+
 def sort_of(state, thing, possible_type):
     if thing == possible_type:
         return True
@@ -54,7 +55,8 @@ def sort_of(state, thing, possible_type):
                 return True
     return False
 
-def all_instances(state,thing):
+
+def all_instances(state, thing):
     proc = [thing]
     proc_idx = 0
     inst = set()
@@ -72,12 +74,52 @@ def all_instances(state,thing):
                     inst.add(i[0])
         proc_idx += 1
 
+
+def all_instances_and_spec(state, thing):
+    yield thing
+
+    proc = [thing]
+    proc_idx = 0
+    inst = set()
+
+    while proc_idx < len(proc):
+        to_process = proc[proc_idx]
+        for i in state.rel["specializes"]:
+            if i[1] == to_process:
+                if i[0] not in proc:
+                    proc += [i[0]]
+                    yield i[0]
+        for i in state.rel["instanceOf"]:
+            if i[1] == to_process:
+                if i[0] not in inst:
+                    yield i[0]
+                    inst.add(i[0])
+        proc_idx += 1
+
+
 class AddRelOp(object):
     def __init__(self, rel):
         self.toAdd = rel
 
     def apply_to(self, state):
         state._mutate_add_rel(self.toAdd[0], self.toAdd[1], self.toAdd[2])
+
+
+def user_wants(state, wanted):
+    for i in all_instances_and_spec(state, "special"):
+        if i == wanted:
+            if "at" in state.rel.keys():
+                if ("user", "table") in state.rel["at"]:
+                    return [RespondOperation("Coming right up!")]
+            return [RespondOperation("Sorry, you must be seated to order")]
+
+    for i in all_instances_and_spec(state, "table"):
+        if i == wanted:
+            if "at" in state.rel.keys():
+                if ("user", "table") in state.rel["at"]:
+                    return [RespondOperation("Um... You're at a table")]
+            return [AddRelOp(("user", "at", "table")), RespondOperation("Right this way!\nThe robot shows you to a wooden table")]
+
 
 
 @Predication(vocabulary, names=["pron"])
@@ -105,7 +147,7 @@ def pron(state, x_who_binding):
 
 @Predication(vocabulary, names=["_pizza_n_1"])
 def _pizza_n_1(state, x_binding):
-    #print(state.rel)
+    # print(state.rel)
 
     def bound_variable(value):
         if value in ["pizza"]:
@@ -195,6 +237,8 @@ def _salad_n_1(state, x_binding):
     yield from combinatorial_style_predication_1(state, x_binding, bound_variable, unbound_variable)
 
 
+'''
+
 @Predication(vocabulary, names=["_special_n_1"])
 def _special_n_1(state, x_binding):
     def bound_variable(value):
@@ -210,8 +254,33 @@ def _special_n_1(state, x_binding):
     yield from combinatorial_style_predication_1(state, x_binding, bound_variable, unbound_variable)
 
 
+'''
 
 
+def handles_noun(noun_lemma):
+    return noun_lemma in ["special"]
+
+
+# Simple example of using match_all that doesn't do anything except
+# make sure we don't say "I don't know the word book"
+@Predication(vocabulary, names=["match_all_n"], matches_lemma_function=handles_noun)
+def match_all_n(noun_type, state, x_binding):
+    def bound_variable(value):
+        if sort_of(state, value, noun_type):
+            return True
+        else:
+            report_error(["notAThing", x_binding.value, x_binding.variable.name])
+            return False
+
+    def unbound_variable():
+        yield from all_instances(state, noun_type)
+
+    yield from combinatorial_style_predication_1(state, x_binding, bound_variable, unbound_variable)
+
+
+@Predication(vocabulary, names=["match_all_n"], matches_lemma_function=handles_noun)
+def match_all_n_i(noun_type, state, x_binding, i_binding):
+    return match_all_n(noun_type, state, x_binding)
 
 
 @Predication(vocabulary, names=["_meat_n_1"])
@@ -316,8 +385,10 @@ def _want_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
         if "want" in state.rel.keys():
             if (x_actor_binding, x_object_binding) in state.rel["want"]:
                 return True
+        elif x_actor_binding == "user":
+            return True
         else:
-            report_error(["verbDoesntApply", "large", x_actor_binding.variable.name])
+            report_error(["verbDoesntApply", "want", x_actor_binding.variable.name])
             return False
 
     def wanters_of_obj(x_object_binding):
@@ -337,21 +408,8 @@ def _want_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
         x_act = success_state.get_binding(x_actor_binding.variable.name).value[0]
         x_obj = success_state.get_binding(x_object_binding.variable.name).value[0]
         if x_act == "user":
-            if x_obj == "table":
-                operation = AddRelOp(("at", "user", "table"))
-                yield success_state.record_operations([operation,RespondOperation("Right this way!\nThe robot shows you to a wooden table")])
-            else:
-                if "at" in success_state.rel.keys():
-                    if ("user","table") in success_state.rel["at"]:
-                        yield success_state.record_operations([RespondOperation("Coming right up!")])
-                    else:
-                        yield success_state.record_operations([RespondOperation("Sorry, you need to be seated to order.")])
-                else:
-                    yield success_state.record_operations([RespondOperation("Sorry, you need to be seated to order.")])
-
-        else:
-            yield success_state
-
+            if not x_obj is None:
+                yield success_state.record_operations(user_wants(state, x_obj))
 
 @Predication(vocabulary, names=["_have_v_1"])
 def _have_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
@@ -388,7 +446,8 @@ def _be_v_id(state, e_introduced_binding, x_actor_binding, x_object_binding):
             return False
 
         else:
-            if (x_actor_binding, x_object_binding) in state.rel["be"] or (x_object_binding, x_actor_binding) in state.rel["be"]:
+            if (x_actor_binding, x_object_binding) in state.rel["be"] or (x_object_binding, x_actor_binding) in \
+                    state.rel["be"]:
                 return True
 
     def unbound(x_object_binding):
@@ -434,12 +493,17 @@ def generate_custom_message(tree_info, error_term):
 
 def reset():
     # return State([])
-    #initial_state = WorldState({}, ["pizza", "computer", "salad", "soup", "steak", "ham", "meat","special"])
-    initial_state = WorldState({}, ["salad", "soup", "special", "salad1"])
+    # initial_state = WorldState({}, ["pizza", "computer", "salad", "soup", "steak", "ham", "meat","special"])
+    initial_state = WorldState({}, ["salad", "soup", "special", "salad1", "table"])
+
     initial_state = initial_state.add_rel("special", "specializes", "thing")
     initial_state = initial_state.add_rel("soup", "specializes", "thing")
     initial_state = initial_state.add_rel("salad", "specializes", "thing")
+    initial_state = initial_state.add_rel("table", "specializes", "thing")
+
     initial_state = initial_state.add_rel("salad1", "instanceOf", "salad")
+    initial_state = initial_state.add_rel("table1", "instanceOf", "table")
+    initial_state = initial_state.add_rel("soup1", "instanceOf", "soup")
     initial_state = initial_state.add_rel("soup", "specializes", "special")
     initial_state = initial_state.add_rel("salad", "specializes", "special")
     initial_state = initial_state.add_rel("computer", "have", "salad1")
