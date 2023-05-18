@@ -1,6 +1,6 @@
 import copy
 
-from perplexity.execution import report_error
+from perplexity.execution import report_error, call
 from perplexity.generation import english_for_delphin_variable
 from perplexity.predications import combinatorial_style_predication_1, in_style_predication_2, lift_style_predication_2
 from perplexity.response import RespondOperation
@@ -118,8 +118,8 @@ def user_wants(state, wanted):
             if "at" in state.rel.keys():
                 if ("user", "table") in state.rel["at"]:
                     return [RespondOperation("Um... You're at a table")]
-            return [AddRelOp(("user", "at", "table")), RespondOperation("Right this way!\nThe robot shows you to a wooden table")]
-
+            return [AddRelOp(("user", "at", "table")),
+                    RespondOperation("Right this way!\nThe robot shows you to a wooden table")]
 
 
 @Predication(vocabulary, names=["pron"])
@@ -410,12 +410,29 @@ def _want_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
         if x_act == "user":
             if not x_obj is None:
                 yield success_state.record_operations(user_wants(state, x_obj))
+
+
 @Predication(vocabulary, names=["_give_v_1"])
 def _give_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding, x_target_binding):
     if state.get_binding(x_actor_binding.variable.name).value[0] == "computer":
         if state.get_binding(x_target_binding.variable.name).value[0] == "user":
             if not state.get_binding(x_object_binding.variable.name).value[0] is None:
-                yield state.record_operations(user_wants(state,state.get_binding(x_object_binding.variable.name).value[0]))
+                yield state.record_operations(
+                    user_wants(state, state.get_binding(x_object_binding.variable.name).value[0]))
+
+
+@Predication(vocabulary, names=["_like_v_1"])
+def _like_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
+    if state.get_binding(x_actor_binding.variable.name).value[0] == "user":
+        if not state.get_binding(x_object_binding.variable.name).value[0] is None:
+            yield state.record_operations(user_wants(state, state.get_binding(x_object_binding.variable.name).value[0]))
+
+
+@Predication(vocabulary, names=["_would_v_modal"])
+def _would_v_modal(state, e_introduced_binding, h_binding):
+    i = 5
+    yield from call(state, h_binding)
+
 
 @Predication(vocabulary, names=["_have_v_1"])
 def _have_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
