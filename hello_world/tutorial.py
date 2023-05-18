@@ -9,6 +9,7 @@ from perplexity.system_vocabulary import system_vocabulary
 from perplexity.user_interface import UserInterface
 from perplexity.utilities import ShowLogging
 from perplexity.vocabulary import Vocabulary, Predication
+from collections import deque
 import perplexity.messages
 
 vocabulary = system_vocabulary()
@@ -24,7 +25,7 @@ class WorldState(State):
         for i in self.ent:
             return i
 
-    def add_rel(self, relname, first, second):
+    def add_rel(self, first, relname, second):
         newrel = copy.deepcopy(self.rel)
         if not relname in newrel:
             newrel[relname] = [(first, second)]
@@ -32,7 +33,7 @@ class WorldState(State):
             newrel[relname] += [(first, second)]
         return WorldState(newrel, self.ent)
 
-    def _mutate_add_rel(self, relname, first, second):
+    def _mutate_add_rel(self, first, relname, second):
         newrel = copy.deepcopy(self.rel)
         if not relname in newrel:
             newrel[relname] = [(first, second)]
@@ -40,6 +41,36 @@ class WorldState(State):
             newrel[relname] += [(first, second)]
         self.rel = newrel
 
+def sort_of(state, thing, possible_type):
+    if thing == possible_type:
+        return True
+    for i in state.rel["specializes"]:
+        if i[1] == possible_type:
+            if sort_of(state, thing, i[0]):
+                return True
+    for i in state.rel["instanceOf"]:
+        if i[1] == possible_type:
+            if sort_of(state, thing, i[0]):
+                return True
+    return False
+
+def all_instances(state,thing):
+    proc = [thing]
+    proc_idx = 0
+    inst = set()
+
+    while proc_idx < len(proc):
+        to_process = proc[proc_idx]
+        for i in state.rel["specializes"]:
+            if i[1] == to_process:
+                if i[0] not in proc:
+                    proc += [i[0]]
+        for i in state.rel["instanceOf"]:
+            if i[1] == to_process:
+                if i[0] not in inst:
+                    yield i[0]
+                    inst.add(i[0])
+        proc_idx += 1
 
 class AddRelOp(object):
     def __init__(self, rel):
@@ -152,14 +183,14 @@ def _soup_n_1(state, x_binding):
 @Predication(vocabulary, names=["_salad_n_1"])
 def _salad_n_1(state, x_binding):
     def bound_variable(value):
-        if value in ["salad"]:
+        if sort_of(state, value, "salad"):
             return True
         else:
             report_error(["notAThing", x_binding.value, x_binding.variable.name])
             return False
 
     def unbound_variable():
-        yield "salad"
+        yield from all_instances(state, "salad")
 
     yield from combinatorial_style_predication_1(state, x_binding, bound_variable, unbound_variable)
 
@@ -167,18 +198,20 @@ def _salad_n_1(state, x_binding):
 @Predication(vocabulary, names=["_special_n_1"])
 def _special_n_1(state, x_binding):
     def bound_variable(value):
-        if value in ["salad", "soup"]:
+        if sort_of(state, value, "special"):
             return True
         else:
             report_error(["notAThing", x_binding.value, x_binding.variable.name])
             return False
 
     def unbound_variable():
-        yield "special"
-        yield "soup"
-        yield "salad"
+        yield from all_instances(state, "special")
 
     yield from combinatorial_style_predication_1(state, x_binding, bound_variable, unbound_variable)
+
+
+
+
 
 
 @Predication(vocabulary, names=["_meat_n_1"])
@@ -359,6 +392,7 @@ def _be_v_id(state, e_introduced_binding, x_actor_binding, x_object_binding):
                 return True
 
     def unbound(x_object_binding):
+        yield x_object_binding
         if "be" in state.rel.keys():
             for i in state.rel["be"]:
                 if i[1] == x_object_binding:
@@ -400,22 +434,16 @@ def generate_custom_message(tree_info, error_term):
 
 def reset():
     # return State([])
-    initial_state = WorldState({}, ["pizza", "computer", "salad", "soup", "steak", "ham", "meat", "special"])
-    initial_state = initial_state.add_rel("want", "computer", "pizza")
-    initial_state = initial_state.add_rel("want", "computer", "ham")
-    initial_state = initial_state.add_rel("want", "user", "table")
-    initial_state = initial_state.add_rel("want", "user", "steak")
-    initial_state = initial_state.add_rel("on", "steak", "menu")
-    initial_state = initial_state.add_rel("on", "pizza", "menu")
-    initial_state = initial_state.add_rel("on", "ham", "menu")
-    initial_state = initial_state.add_rel("have", "menu", "ham")
-    initial_state = initial_state.add_rel("have", "menu", "steak")
-    initial_state = initial_state.add_rel("have", "menu", "pizza")
-    initial_state = initial_state.add_rel("have", "computer", "ham")
-    initial_state = initial_state.add_rel("have", "computer", "steak")
-    initial_state = initial_state.add_rel("have", "computer", "pizza")
-    initial_state = initial_state.add_rel("be", "soup", "special")
-    initial_state = initial_state.add_rel("be", "salad", "special")
+    #initial_state = WorldState({}, ["pizza", "computer", "salad", "soup", "steak", "ham", "meat","special"])
+    initial_state = WorldState({}, ["salad", "soup", "special", "salad1"])
+    initial_state = initial_state.add_rel("special", "specializes", "thing")
+    initial_state = initial_state.add_rel("soup", "specializes", "thing")
+    initial_state = initial_state.add_rel("salad", "specializes", "thing")
+    initial_state = initial_state.add_rel("salad1", "instanceOf", "salad")
+    initial_state = initial_state.add_rel("soup", "specializes", "special")
+    initial_state = initial_state.add_rel("salad", "specializes", "special")
+    initial_state = initial_state.add_rel("computer", "have", "salad1")
+
     return initial_state
 
 
