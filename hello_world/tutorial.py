@@ -62,7 +62,7 @@ def all_instances(state, thing):
     proc_idx = 0
     inst = set()
 
-    #for i in state.rel["instanceOf"]:
+    # for i in state.rel["instanceOf"]:
     #    if(i[0] == thing):
     #        return thing
 
@@ -100,6 +100,8 @@ def all_instances_and_spec(state, thing):
                     yield i[0]
                     inst.add(i[0])
         proc_idx += 1
+
+
 def all_ancestors(state, thing):
     proc = [thing]
     proc_idx = 0
@@ -172,6 +174,7 @@ def pron(state, x_who_binding):
             report_error(["dontKnowActor", x_who_binding.variable.name])
 
     yield from combinatorial_style_predication_1(state, x_who_binding, bound_variable, unbound_variable)
+
 
 @Predication(vocabulary, names=["_table_n_1"])
 def _table_n_1(state, x_binding):
@@ -347,13 +350,16 @@ def _like_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
 def _would_v_modal(state, e_introduced_binding, h_binding):
     yield from call(state, h_binding)
 
+
 @Predication(vocabulary, names=["_please_a_1"])
 def _please_a_1(state, e_introduced_binding, e_binding):
     yield state
 
-@Predication(vocabulary, names=["_could_v_modal","_can_v_modal"])
+
+@Predication(vocabulary, names=["_could_v_modal", "_can_v_modal"])
 def _could_v_modal(state, e_introduced_binding, h_binding):
     yield from call(state, h_binding)
+
 
 @Predication(vocabulary, names=["polite"])
 def polite(state, c_arg, i_binding, e_binding):
@@ -364,8 +370,9 @@ def polite(state, c_arg, i_binding, e_binding):
 def _have_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
     def criteria_bound(x_actor_binding, x_object_binding):
         j = state.get_binding("tree").value[0]["Index"]
-        is_cond = find_predication_from_introduced(state.get_binding("tree").value[0]["Tree"],j).name in ["_could_v_modal","_can_v_modal"]
-        if(is_cond):
+        is_cond = find_predication_from_introduced(state.get_binding("tree").value[0]["Tree"], j).name in [
+            "_could_v_modal", "_can_v_modal"]
+        if (is_cond):
             return True
         else:
             if "have" in state.rel.keys():
@@ -388,7 +395,8 @@ def _have_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
                 if i[0] == x_actor_binding:
                     yield i[1]
 
-    for success_state in in_style_predication_2(state, x_actor_binding, x_object_binding, criteria_bound, havers_of_obj,had_of_actor):
+    for success_state in in_style_predication_2(state, x_actor_binding, x_object_binding, criteria_bound, havers_of_obj,
+                                                had_of_actor):
         x_act = success_state.get_binding(x_actor_binding.variable.name).value[0]
         x_obj = success_state.get_binding(x_object_binding.variable.name).value[0]
 
@@ -403,7 +411,6 @@ def _have_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
             yield success_state
 
 
-
 @Predication(vocabulary, names=["_be_v_id"])
 def _be_v_id(state, e_introduced_binding, x_actor_binding, x_object_binding):
     def criteria_bound(x_actor_binding, x_object_binding):
@@ -416,12 +423,25 @@ def _be_v_id(state, e_introduced_binding, x_actor_binding, x_object_binding):
     def unbound(x_object_binding):
         for i in all_instances(state, x_object_binding):
             yield i
-        for i in all_ancestors(state,x_object_binding):
+        for i in all_ancestors(state, x_object_binding):
             yield i
         yield x_object_binding
 
     yield from in_style_predication_2(state, x_actor_binding, x_object_binding, criteria_bound, unbound,
                                       unbound)
+
+
+@Predication(vocabulary, names=["_be_v_there"])
+def _be_v_there(state, e_introduced_binding, x_object_binding):
+    def bound_variable(value):
+        yield value in state.ent
+
+    def unbound_variable():
+        for i in state.ent:
+            yield i
+
+    yield from combinatorial_style_predication_1(state, x_object_binding, bound_variable, unbound_variable)
+
 
 # Generates all the responses that predications can
 # return when an error occurs
@@ -454,7 +474,7 @@ def generate_custom_message(tree_info, error_term):
 def reset():
     # return State([])
     # initial_state = WorldState({}, ["pizza", "computer", "salad", "soup", "steak", "ham", "meat","special"])
-    initial_state = WorldState({}, ["salad", "soup", "soup1","special", "salad1", "table", "menu"])
+    initial_state = WorldState({}, ["salad", "soup", "soup1", "special", "salad1", "table", "menu"])
 
     initial_state = initial_state.add_rel("special", "specializes", "food")
     initial_state = initial_state.add_rel("table", "specializes", "thing")
