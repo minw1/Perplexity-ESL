@@ -182,43 +182,20 @@ def pron(state, x_who_binding):
     yield from combinatorial_style_predication_1(state, x_who_binding, bound_variable, unbound_variable)
 
 
-@Predication(vocabulary, names=["_table_n_1"])
-def _table_n_1(state, x_binding):
-    def bound_variable(value):
-        if value in ["table"]:
-            return True
-        else:
-            report_error(["notAThing", x_binding.value, x_binding.variable.name])
-            return False
+@Predication(vocabulary, names=["generic_entity"])
+def ge(state, x_who_binding):
+    def bound(val):
+        return val in state.ent
 
-    def unbound_variable():
-        yield "table"
+    def unbound():
+        for i in state.ent:
+            yield i
 
-    yield from combinatorial_style_predication_1(state, x_binding, bound_variable, unbound_variable)
-
-
-'''
-
-@Predication(vocabulary, names=["_special_n_1"])
-def _special_n_1(state, x_binding):
-    def bound_variable(value):
-        if sort_of(state, value, "special"):
-            return True
-        else:
-            report_error(["notAThing", x_binding.value, x_binding.variable.name])
-            return False
-
-    def unbound_variable():
-        yield from all_instances(state, "special")
-
-    yield from combinatorial_style_predication_1(state, x_binding, bound_variable, unbound_variable)
-
-
-'''
+    yield from combinatorial_style_predication_1(state, x_who_binding, bound, unbound)
 
 
 def handles_noun(noun_lemma):
-    return noun_lemma in ["special", "food", "menu", "soup", "salad"]
+    return noun_lemma in ["special", "food", "menu", "soup", "salad", "table", "thing"]
 
 
 # Simple example of using match_all that doesn't do anything except
@@ -241,21 +218,6 @@ def match_all_n(noun_type, state, x_binding):
 @Predication(vocabulary, names=["match_all_n"], matches_lemma_function=handles_noun)
 def match_all_n_i(noun_type, state, x_binding, i_binding):
     return match_all_n(noun_type, state, x_binding)
-
-
-@Predication(vocabulary, names=["_menu_n_1"])
-def _menu_n_1(state, x_binding):
-    def bound_variable(value):
-        if value in ["menu"]:
-            return True
-        else:
-            report_error(["notAThing", x_binding.value, x_binding.variable.name])
-            return False
-
-    def unbound_variable():
-        yield "menu"
-
-    yield from combinatorial_style_predication_1(state, x_binding, bound_variable, unbound_variable)
 
 
 @Predication(vocabulary, names=("_on_p_loc",))
@@ -284,23 +246,6 @@ def on_p_loc(state, e_introduced_binding, x_actor_binding, x_location_binding):
                                       check_item_on_item,
                                       all_item1_on_item2,
                                       all_item2_containing_item1)
-
-
-@Predication(vocabulary, names=["_large_a_1"])
-def large_a_1(state, e_introduced_binding, x_target_binding):
-    def criteria_bound(value):
-        if value == "file2.txt":
-            return True
-
-        else:
-            report_error(["adjectiveDoesntApply", "large", x_target_binding.variable.name])
-            return False
-
-    def unbound_values():
-        # Find all large things
-        yield "file2.txt"
-
-    yield from combinatorial_style_predication_1(state, x_target_binding, criteria_bound, unbound_values)
 
 
 @Predication(vocabulary, names=["_want_v_1"])
@@ -368,6 +313,7 @@ def loc_nonsp(state, e_introduced_binding, x_actor_binding, x_loc_binding):
     yield from in_style_predication_2(state, x_actor_binding, x_loc_binding, item1_in_item2, items_in_item1,
                                       item1_in_items)
 
+
 @Predication(vocabulary, names=["loc_nonsp"])
 def loc_nonsp_eex(state, e_introduced_binding, e_binding, x_loc_binding):
     yield state
@@ -404,7 +350,8 @@ def time_n(state, x_binding):
 
     yield from combinatorial_style_predication_1(state, x_binding, bound_variable, unbound_variable)
 
-@Predication(vocabulary, names=["def_implicit_q"])
+
+@Predication(vocabulary, names=["def_implicit_q", "def_explicit_q"])
 def def_implicit_q(state, x_variable_binding, h_rstr, h_body):
     state = state.set_variable_data(x_variable_binding.variable.name,
                                     quantifier=VariableCriteria(execution_context().current_predication(),
@@ -413,6 +360,7 @@ def def_implicit_q(state, x_variable_binding, h_rstr, h_body):
                                                                 max_size=float('inf')))
 
     yield from quantifier_raw(state, x_variable_binding, h_rstr, h_body)
+
 
 @Predication(vocabulary, names=["_like_v_1"])
 def _like_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
@@ -486,6 +434,11 @@ def _have_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
             yield success_state
 
 
+@Predication(vocabulary, names=["poss"])
+def poss(state, e_introduced_binding, x_object_binding, x_actor_binding):
+    yield from _have_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding)
+
+
 @Predication(vocabulary, names=["_be_v_id"])
 def _be_v_id(state, e_introduced_binding, x_actor_binding, x_object_binding):
     def criteria_bound(x_actor_binding, x_object_binding):
@@ -546,7 +499,7 @@ def generate_custom_message(tree_info, error_term):
 def reset():
     # return State([])
     # initial_state = WorldState({}, ["pizza", "computer", "salad", "soup", "steak", "ham", "meat","special"])
-    initial_state = WorldState({}, ["salad", "soup", "soup1", "special", "salad1", "table", "menu", "pizza"])
+    initial_state = WorldState({}, ["salad", "soup", "soup1", "special", "salad1", "table", "table1", "menu", "pizza","pizza1"])
 
     initial_state = initial_state.add_rel("special", "specializes", "food")
     initial_state = initial_state.add_rel("table", "specializes", "thing")
