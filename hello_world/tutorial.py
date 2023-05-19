@@ -147,11 +147,13 @@ def user_wants(state, wanted):
                 if ("user", "table") in state.rel["at"]:
                     return [RespondOperation("Um... You're at a table")]
             return [AddRelOp(("user", "at", "table")),
-                    RespondOperation("Right this way!\nThe robot shows you to a wooden table")]
+                    RespondOperation("Robot: Right this way!\nThe robot shows you to a wooden table\nRobot: I hope you have a lovely dining experience with us today. Make sure to ask your waiter for the specials!\nA minute passes \nRobot Waiter: Hello! How can I help you?")]
     for i in all_instances_and_spec(state, "menu"):
         if i == wanted:
-            return [RespondOperation("Here's the menu...\n...menu goes here...")]
-
+            if "at" in state.rel.keys():
+                if ("user", "table") in state.rel["at"]:
+                    return [RespondOperation("Here's the menu...\n...menu goes here...")]
+            return [RespondOperation("Sorry, you must be seated to order")]
 
 @Predication(vocabulary, names=["pron"])
 def pron(state, x_who_binding):
@@ -422,8 +424,6 @@ def _be_v_id(state, e_introduced_binding, x_actor_binding, x_object_binding):
 
     def unbound(x_object_binding):
         for i in all_instances(state, x_object_binding):
-            yield i
-        for i in all_ancestors(state, x_object_binding):
             yield i
         yield x_object_binding
 

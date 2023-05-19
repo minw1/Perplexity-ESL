@@ -11,7 +11,7 @@
         },
         {
             "Command": "i want a table",
-            "Expected": "Right this way!\nThe robot shows you to a wooden table",
+            "Expected": "Robot: Right this way!\nThe robot shows you to a wooden table\nRobot: I hope you have a lovely dining experience with us today. Make sure to ask your waiter for the specials!\nA minute passes \nRobot Waiter: Hello! How can I help you?",
             "Tree": "pronoun_q(x3,pron(x3),_a_q(x8,_table_n_1(x8),_want_v_1(e2,x3,x8)))",
             "Enabled": true,
             "ID": "715def20-1fba-41c8-a679-d38f62c867bd"
@@ -46,7 +46,7 @@
         },
         {
             "Command": "give me a table",
-            "Expected": "Right this way!\nThe robot shows you to a wooden table",
+            "Expected": "Robot: Right this way!\nThe robot shows you to a wooden table\nRobot: I hope you have a lovely dining experience with us today. Make sure to ask your waiter for the specials!\nA minute passes \nRobot Waiter: Hello! How can I help you?",
             "Tree": "pronoun_q(x9,pron(x9),_a_q(x8,_table_n_1(x8),pronoun_q(x3,pron(x3),_give_v_1(e2,x3,x8,x9))))",
             "Enabled": true,
             "ID": "55ab1659-281d-4af5-9f82-ff01e39cb6b5"
@@ -88,7 +88,7 @@
         },
         {
             "Command": "I would like a table",
-            "Expected": "Right this way!\nThe robot shows you to a wooden table",
+            "Expected": "Robot: Right this way!\nThe robot shows you to a wooden table\nRobot: I hope you have a lovely dining experience with us today. Make sure to ask your waiter for the specials!\nA minute passes \nRobot Waiter: Hello! How can I help you?",
             "Tree": "_would_v_modal(e2,_a_q(x11,_table_n_1(x11),pronoun_q(x3,pron(x3),_like_v_1(e10,x3,x11))))",
             "Enabled": true,
             "ID": "3c72d3c2-663c-4593-8705-92b42f26a21f"
@@ -116,7 +116,7 @@
         },
         {
             "Command": "could i have a table?",
-            "Expected": "Right this way!\nThe robot shows you to a wooden table",
+            "Expected": "Robot: Right this way!\nThe robot shows you to a wooden table\nRobot: I hope you have a lovely dining experience with us today. Make sure to ask your waiter for the specials!\nA minute passes \nRobot Waiter: Hello! How can I help you?",
             "Tree": "_could_v_modal(e2,_a_q(x11,_table_n_1(x11),pronoun_q(x3,pron(x3),_have_v_1(e10,x3,x11))))",
             "Enabled": true,
             "ID": "c1ea414c-2a6e-46a1-b683-519af8ecaa6b"
@@ -144,7 +144,7 @@
         },
         {
             "Command": "please, can I have a table",
-            "Expected": "Right this way!\nThe robot shows you to a wooden table",
+            "Expected": "Robot: Right this way!\nThe robot shows you to a wooden table\nRobot: I hope you have a lovely dining experience with us today. Make sure to ask your waiter for the specials!\nA minute passes \nRobot Waiter: Hello! How can I help you?",
             "Tree": "[polite(please,i5,e2), _can_v_modal(e2,_a_q(x13,_table_n_1(x13),pronoun_q(x3,pron(x3),_have_v_1(e12,x3,x13))))]",
             "Enabled": true,
             "ID": "84838235-e3ec-49c6-9d23-7fde183a9a66"
@@ -172,7 +172,7 @@
         },
         {
             "Command": "i could want a table",
-            "Expected": "Right this way!\nThe robot shows you to a wooden table",
+            "Expected": "Robot: Right this way!\nThe robot shows you to a wooden table\nRobot: I hope you have a lovely dining experience with us today. Make sure to ask your waiter for the specials!\nA minute passes \nRobot Waiter: Hello! How can I help you?",
             "Tree": "_could_v_modal(e2,_a_q(x11,_table_n_1(x11),pronoun_q(x3,pron(x3),_want_v_1(e10,x3,x11))))",
             "Enabled": true,
             "ID": "a007eda8-42e2-49a4-85f7-b8a92fe172e6"
