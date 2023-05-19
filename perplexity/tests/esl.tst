@@ -99,6 +99,62 @@
             "Tree": "_would_v_modal(e2,_a_q(x11,_salad_n_1(x11),pronoun_q(x3,pron(x3),_like_v_1(e10,x3,x11))))",
             "Enabled": true,
             "ID": "05295d60-471a-4adc-926e-d642fcfa44f0"
+        },
+        {
+            "Command": "/reset",
+            "Expected": "",
+            "Tree": "None",
+            "Enabled": true,
+            "ID": "7a733718-c7a1-46a9-8957-8c562b7c8cf2"
+        },
+        {
+            "Command": "could i have a soup?",
+            "Expected": "Sorry, you must be seated to order",
+            "Tree": "_could_v_modal(e2,_a_q(x11,_soup_n_1(x11),pronoun_q(x3,pron(x3),_have_v_1(e10,x3,x11))))",
+            "Enabled": true,
+            "ID": "5176e174-c274-4db7-9cfb-07e8b0593c07"
+        },
+        {
+            "Command": "could i have a table?",
+            "Expected": "Right this way!\nThe robot shows you to a wooden table",
+            "Tree": "_could_v_modal(e2,_a_q(x11,_table_n_1(x11),pronoun_q(x3,pron(x3),_have_v_1(e10,x3,x11))))",
+            "Enabled": true,
+            "ID": "c1ea414c-2a6e-46a1-b683-519af8ecaa6b"
+        },
+        {
+            "Command": "could i have a soup?",
+            "Expected": "Coming right up!",
+            "Tree": "_could_v_modal(e2,_a_q(x11,_soup_n_1(x11),pronoun_q(x3,pron(x3),_have_v_1(e10,x3,x11))))",
+            "Enabled": true,
+            "ID": "77c115f7-6d33-4f8c-b4fb-ae6fa743a146"
+        },
+        {
+            "Command": "could i have a table?",
+            "Expected": "Um... You're at a table",
+            "Tree": "_could_v_modal(e2,_a_q(x11,_table_n_1(x11),pronoun_q(x3,pron(x3),_have_v_1(e10,x3,x11))))",
+            "Enabled": true,
+            "ID": "6ded92f5-70e8-4d06-b6c3-530c12fc78c9"
+        },
+        {
+            "Command": "/reset",
+            "Expected": "",
+            "Tree": "None",
+            "Enabled": true,
+            "ID": "44ecdeaa-5b06-4d41-af4d-172792e5e854"
+        },
+        {
+            "Command": "please, can I have a table",
+            "Expected": "Right this way!\nThe robot shows you to a wooden table",
+            "Tree": "[polite(please,i5,e2), _can_v_modal(e2,_a_q(x13,_table_n_1(x13),pronoun_q(x3,pron(x3),_have_v_1(e12,x3,x13))))]",
+            "Enabled": true,
+            "ID": "84838235-e3ec-49c6-9d23-7fde183a9a66"
+        },
+        {
+            "Command": "please, can I have a soup?",
+            "Expected": "Coming right up!",
+            "Tree": "[polite(please,i5,e2), _can_v_modal(e2,_a_q(x13,_soup_n_1(x13),pronoun_q(x3,pron(x3),_have_v_1(e12,x3,x13))))]",
+            "Enabled": true,
+            "ID": "174208d7-868c-4bf4-b810-c6726d924990"
         }
     ]
 }

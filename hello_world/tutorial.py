@@ -9,6 +9,7 @@ from perplexity.system_vocabulary import system_vocabulary
 from perplexity.user_interface import UserInterface
 from perplexity.utilities import ShowLogging
 from perplexity.vocabulary import Vocabulary, Predication
+from perplexity.tree import find_predication_from_introduced
 from collections import deque
 import perplexity.messages
 
@@ -397,20 +398,36 @@ def _like_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
 
 @Predication(vocabulary, names=["_would_v_modal"])
 def _would_v_modal(state, e_introduced_binding, h_binding):
-    i = 5
     yield from call(state, h_binding)
+
+@Predication(vocabulary, names=["_please_a_1"])
+def _please_a_1(state, e_introduced_binding, e_binding):
+    yield state
+
+@Predication(vocabulary, names=["_could_v_modal","_can_v_modal"])
+def _could_v_modal(state, e_introduced_binding, h_binding):
+    yield from call(state, h_binding)
+
+@Predication(vocabulary, names=["polite"])
+def polite(state, c_arg, i_binding, e_binding):
+    yield state
 
 
 @Predication(vocabulary, names=["_have_v_1"])
 def _have_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
     def criteria_bound(x_actor_binding, x_object_binding):
-        if "have" in state.rel.keys():
-            if (x_actor_binding, x_object_binding) in state.rel["have"]:
-                return True
-
+        j = state.get_binding("tree").value[0]["Index"]
+        is_cond = find_predication_from_introduced(state.get_binding("tree").value[0]["Tree"],j).name in ["_could_v_modal","_can_v_modal"]
+        if(is_cond):
+            return True
         else:
-            report_error(["verbDoesntApply", "large", x_actor_binding.variable.name])
-            return False
+            if "have" in state.rel.keys():
+                if (x_actor_binding, x_object_binding) in state.rel["have"]:
+                    return True
+
+            else:
+                report_error(["verbDoesntApply", "large", x_actor_binding.variable.name])
+                return False
 
     def havers_of_obj(x_object_binding):
         if "have" in state.rel.keys():
@@ -424,8 +441,20 @@ def _have_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
                 if i[0] == x_actor_binding:
                     yield i[1]
 
-    yield from in_style_predication_2(state, x_actor_binding, x_object_binding, criteria_bound, havers_of_obj,
-                                      had_of_actor)
+    for success_state in in_style_predication_2(state, x_actor_binding, x_object_binding, criteria_bound, havers_of_obj,had_of_actor):
+        x_act = success_state.get_binding(x_actor_binding.variable.name).value[0]
+        x_obj = success_state.get_binding(x_object_binding.variable.name).value[0]
+
+        j = state.get_binding("tree").value[0]["Index"]
+        is_cond = find_predication_from_introduced(state.get_binding("tree").value[0]["Tree"],
+                                                   j).name in ["_could_v_modal","_can_v_modal"]
+        if is_cond:
+            if x_act == "user":
+                if not x_obj is None:
+                    yield success_state.record_operations(user_wants(state, x_obj))
+        else:
+            yield success_state
+
 
 
 @Predication(vocabulary, names=["_be_v_id"])
