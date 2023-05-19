@@ -190,6 +190,27 @@
             "Tree": "_could_v_modal(e2,_a_q(x11,_table_n_1(x11),pronoun_q(x3,pron(x3),_have_v_1(e10,x3,x11))))",
             "Enabled": true,
             "ID": "1ce964ae-7303-4d32-9dae-ffc8cfa8f26f"
+        },
+        {
+            "Command": "what are the specials today?",
+            "Expected": "('soup1',)('salad1',)",
+            "Tree": "def_implicit_q(x14,[time_n(x14), _today_a_1(e19,x14)],which_q(x5,thing(x5),_the_q(x3,[_special_n_1(x3), loc_nonsp(e13,x3,x14)],_be_v_id(e2,x3,x5))))",
+            "Enabled": true,
+            "ID": "cb38d91c-4ad5-432e-8930-9849ab7019de"
+        },
+        {
+            "Command": "i would like a table today",
+            "Expected": "Um... You're at a table",
+            "Tree": "_would_v_modal(e2,_a_q(x11,_table_n_1(x11),def_implicit_q(x17,[time_n(x17), _today_a_1(e22,x17)],pronoun_q(x3,pron(x3),[loc_nonsp(e16,e10,x17), _like_v_1(e10,x3,x11)]))))",
+            "Enabled": true,
+            "ID": "4bbf8169-3ea6-43c7-93b6-8f1070faf40e"
+        },
+        {
+            "Command": "could i have a salad today",
+            "Expected": "Coming right up!",
+            "Tree": "_could_v_modal(e2,_a_q(x11,_salad_n_1(x11),def_implicit_q(x17,[time_n(x17), _today_a_1(e22,x17)],pronoun_q(x3,pron(x3),[loc_nonsp(e16,e10,x17), _have_v_1(e10,x3,x11)]))))",
+            "Enabled": true,
+            "ID": "9de64934-cdc9-45f3-ba14-8f7e4421151c"
         }
     ]
 }

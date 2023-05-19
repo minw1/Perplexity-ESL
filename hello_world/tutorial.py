@@ -1,14 +1,16 @@
 import copy
 
-from perplexity.execution import report_error, call
+from perplexity.execution import report_error, call, execution_context
 from perplexity.generation import english_for_delphin_variable
-from perplexity.predications import combinatorial_style_predication_1, in_style_predication_2, lift_style_predication_2
+from perplexity.plurals import VariableCriteria
+from perplexity.predications import combinatorial_style_predication_1, in_style_predication_2, lift_style_predication_2, \
+    quantifier_raw
 from perplexity.response import RespondOperation
 from perplexity.state import State
 from perplexity.system_vocabulary import system_vocabulary
 from perplexity.user_interface import UserInterface
 from perplexity.utilities import ShowLogging
-from perplexity.vocabulary import Vocabulary, Predication
+from perplexity.vocabulary import Vocabulary, Predication, EventOption
 from perplexity.tree import find_predication_from_introduced
 from collections import deque
 import perplexity.messages
@@ -147,13 +149,15 @@ def user_wants(state, wanted):
                 if ("user", "table") in state.rel["at"]:
                     return [RespondOperation("Um... You're at a table")]
             return [AddRelOp(("user", "at", "table")),
-                    RespondOperation("Robot: Right this way!\nThe robot shows you to a wooden table\nRobot: I hope you have a lovely dining experience with us today. Make sure to ask your waiter for the specials!\nA minute passes \nRobot Waiter: Hello! How can I help you?")]
+                    RespondOperation(
+                        "Robot: Right this way!\nThe robot shows you to a wooden table\nRobot: I hope you have a lovely dining experience with us today. Make sure to ask your waiter for the specials!\nA minute passes \nRobot Waiter: Hello! How can I help you?")]
     for i in all_instances_and_spec(state, "menu"):
         if i == wanted:
             if "at" in state.rel.keys():
                 if ("user", "table") in state.rel["at"]:
                     return [RespondOperation("Here's the menu...\n...menu goes here...")]
             return [RespondOperation("Sorry, you must be seated to order")]
+
 
 @Predication(vocabulary, names=["pron"])
 def pron(state, x_who_binding):
@@ -341,6 +345,75 @@ def _give_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding, x_
                     user_wants(state, state.get_binding(x_object_binding.variable.name).value[0]))
 
 
+@Predication(vocabulary, names=["loc_nonsp"])
+def loc_nonsp(state, e_introduced_binding, x_actor_binding, x_loc_binding):
+    def item1_in_item2(item1, item2):
+        if item2 == "today":
+            return True
+
+        if (item1, item2) in state.rel["contains"]:
+            return True
+        return False
+
+    def items_in_item1(item1):
+        for i in state.rel["contains"]:
+            if i[0] == item1:
+                yield i[1]
+
+    def item1_in_items(item1):
+        for i in state.rel["contains"]:
+            if i[1] == item1:
+                yield i[0]
+
+    yield from in_style_predication_2(state, x_actor_binding, x_loc_binding, item1_in_item2, items_in_item1,
+                                      item1_in_items)
+
+@Predication(vocabulary, names=["loc_nonsp"])
+def loc_nonsp_eex(state, e_introduced_binding, e_binding, x_loc_binding):
+    yield state
+
+
+@Predication(vocabulary, names=["_today_a_1"])
+def _today_a_1(state, e_introduced_binding, x_binding):
+    def bound_variable(value):
+        if value in ["today"]:
+            return True
+        else:
+            report_error(["notAThing", x_binding.value, x_binding.variable.name])
+            return False
+
+    def unbound_variable():
+        yield "today"
+
+    yield from combinatorial_style_predication_1(state, x_binding, bound_variable, unbound_variable)
+
+
+@Predication(vocabulary, names=["time_n"])
+def time_n(state, x_binding):
+    def bound_variable(value):
+        if value in ["today", "yesterday", "tomorrow"]:
+            return True
+        else:
+            report_error(["notAThing", x_binding.value, x_binding.variable.name])
+            return False
+
+    def unbound_variable():
+        yield "today"
+        yield "yesterday"
+        yield "tomorrow"
+
+    yield from combinatorial_style_predication_1(state, x_binding, bound_variable, unbound_variable)
+
+@Predication(vocabulary, names=["def_implicit_q"])
+def def_implicit_q(state, x_variable_binding, h_rstr, h_body):
+    state = state.set_variable_data(x_variable_binding.variable.name,
+                                    quantifier=VariableCriteria(execution_context().current_predication(),
+                                                                x_variable_binding.variable.name,
+                                                                min_size=1,
+                                                                max_size=float('inf')))
+
+    yield from quantifier_raw(state, x_variable_binding, h_rstr, h_body)
+
 @Predication(vocabulary, names=["_like_v_1"])
 def _like_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
     if state.get_binding(x_actor_binding.variable.name).value[0] == "user":
@@ -416,7 +489,6 @@ def _have_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
 @Predication(vocabulary, names=["_be_v_id"])
 def _be_v_id(state, e_introduced_binding, x_actor_binding, x_object_binding):
     def criteria_bound(x_actor_binding, x_object_binding):
-
         first_in_second = x_actor_binding in all_instances_and_spec(state, x_object_binding)
         second_in_first = x_object_binding in all_instances_and_spec(state, x_actor_binding)
 
@@ -474,21 +546,26 @@ def generate_custom_message(tree_info, error_term):
 def reset():
     # return State([])
     # initial_state = WorldState({}, ["pizza", "computer", "salad", "soup", "steak", "ham", "meat","special"])
-    initial_state = WorldState({}, ["salad", "soup", "soup1", "special", "salad1", "table", "menu"])
+    initial_state = WorldState({}, ["salad", "soup", "soup1", "special", "salad1", "table", "menu", "pizza"])
 
     initial_state = initial_state.add_rel("special", "specializes", "food")
     initial_state = initial_state.add_rel("table", "specializes", "thing")
     initial_state = initial_state.add_rel("menu", "specializes", "thing")
     initial_state = initial_state.add_rel("food", "specializes", "thing")
+    initial_state = initial_state.add_rel("pizza", "specializes", "food")
 
     initial_state = initial_state.add_rel("salad1", "instanceOf", "salad")
     initial_state = initial_state.add_rel("table1", "instanceOf", "table")
     initial_state = initial_state.add_rel("soup1", "instanceOf", "soup")
     initial_state = initial_state.add_rel("menu1", "instanceOf", "menu")
+    initial_state = initial_state.add_rel("pizza1", "instanceOf", "pizza")
 
     initial_state = initial_state.add_rel("soup", "specializes", "special")
     initial_state = initial_state.add_rel("salad", "specializes", "special")
     initial_state = initial_state.add_rel("computer", "have", "salad1")
+    initial_state = initial_state.add_rel("computer", "have", "soup1")
+    initial_state = initial_state.add_rel("pizza1", "on", "menu")
+    initial_state = initial_state.add_rel("room", "contains", "user")
 
     return initial_state
 
