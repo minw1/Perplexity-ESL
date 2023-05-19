@@ -62,6 +62,10 @@ def all_instances(state, thing):
     proc_idx = 0
     inst = set()
 
+    #for i in state.rel["instanceOf"]:
+    #    if(i[0] == thing):
+    #        return thing
+
     while proc_idx < len(proc):
         to_process = proc[proc_idx]
         for i in state.rel["specializes"]:
@@ -96,6 +100,24 @@ def all_instances_and_spec(state, thing):
                     yield i[0]
                     inst.add(i[0])
         proc_idx += 1
+def all_ancestors(state, thing):
+    proc = [thing]
+    proc_idx = 0
+
+    while proc_idx < len(proc):
+        to_process = proc[proc_idx]
+        for i in state.rel["instanceOf"]:
+            if i[0] == to_process:
+                if i[1] not in proc:
+                    yield i[1]
+                    proc += [i[1]]
+
+        for i in state.rel["specializes"]:
+            if i[0] == to_process:
+                if i[1] not in proc:
+                    proc += [i[1]]
+                    yield i[1]
+        proc_idx += 1
 
 
 class AddRelOp(object):
@@ -107,6 +129,9 @@ class AddRelOp(object):
 
 
 def user_wants(state, wanted):
+    if not wanted in state.ent:
+        return [RespondOperation("Sorry, we don't have that.")]
+
     for i in all_instances_and_spec(state, "special"):
         if i == wanted:
             if "at" in state.rel.keys():
@@ -121,7 +146,7 @@ def user_wants(state, wanted):
                     return [RespondOperation("Um... You're at a table")]
             return [AddRelOp(("user", "at", "table")),
                     RespondOperation("Right this way!\nThe robot shows you to a wooden table")]
-    for i in all_instances_and_spec(state,"menu"):
+    for i in all_instances_and_spec(state, "menu"):
         if i == wanted:
             return [RespondOperation("Here's the menu...\n...menu goes here...")]
 
@@ -148,39 +173,6 @@ def pron(state, x_who_binding):
 
     yield from combinatorial_style_predication_1(state, x_who_binding, bound_variable, unbound_variable)
 
-
-@Predication(vocabulary, names=["_pizza_n_1"])
-def _pizza_n_1(state, x_binding):
-    # print(state.rel)
-
-    def bound_variable(value):
-        if value in ["pizza"]:
-            return True
-        else:
-            report_error(["notAThing", x_binding.value, x_binding.variable.name])
-            return False
-
-    def unbound_variable():
-        yield "pizza"
-
-    yield from combinatorial_style_predication_1(state, x_binding, bound_variable, unbound_variable)
-
-
-@Predication(vocabulary, names=["_steak_n_1"])
-def _steak_n_1(state, x_binding):
-    def bound_variable(value):
-        if value in ["steak"]:
-            return True
-        else:
-            report_error(["notAThing", x_binding.value, x_binding.variable.name])
-            return False
-
-    def unbound_variable():
-        yield "steak"
-
-    yield from combinatorial_style_predication_1(state, x_binding, bound_variable, unbound_variable)
-
-
 @Predication(vocabulary, names=["_table_n_1"])
 def _table_n_1(state, x_binding):
     def bound_variable(value):
@@ -192,51 +184,6 @@ def _table_n_1(state, x_binding):
 
     def unbound_variable():
         yield "table"
-
-    yield from combinatorial_style_predication_1(state, x_binding, bound_variable, unbound_variable)
-
-
-@Predication(vocabulary, names=["_ham_n_1"])
-def _ham_n_1(state, x_binding):
-    def bound_variable(value):
-        if value in ["ham"]:
-            return True
-        else:
-            report_error(["notAThing", x_binding.value, x_binding.variable.name])
-            return False
-
-    def unbound_variable():
-        yield "ham"
-
-    yield from combinatorial_style_predication_1(state, x_binding, bound_variable, unbound_variable)
-
-
-@Predication(vocabulary, names=["_soup_n_1"])
-def _soup_n_1(state, x_binding):
-    def bound_variable(value):
-        if value in ["soup"]:
-            return True
-        else:
-            report_error(["notAThing", x_binding.value, x_binding.variable.name])
-            return False
-
-    def unbound_variable():
-        yield "soup"
-
-    yield from combinatorial_style_predication_1(state, x_binding, bound_variable, unbound_variable)
-
-
-@Predication(vocabulary, names=["_salad_n_1"])
-def _salad_n_1(state, x_binding):
-    def bound_variable(value):
-        if sort_of(state, value, "salad"):
-            return True
-        else:
-            report_error(["notAThing", x_binding.value, x_binding.variable.name])
-            return False
-
-    def unbound_variable():
-        yield from all_instances(state, "salad")
 
     yield from combinatorial_style_predication_1(state, x_binding, bound_variable, unbound_variable)
 
@@ -262,7 +209,7 @@ def _special_n_1(state, x_binding):
 
 
 def handles_noun(noun_lemma):
-    return noun_lemma in ["special", "food", "menu"]
+    return noun_lemma in ["special", "food", "menu", "soup", "salad"]
 
 
 # Simple example of using match_all that doesn't do anything except
@@ -447,7 +394,7 @@ def _have_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
 
         j = state.get_binding("tree").value[0]["Index"]
         is_cond = find_predication_from_introduced(state.get_binding("tree").value[0]["Tree"],
-                                                   j).name in ["_could_v_modal","_can_v_modal"]
+                                                   j).name in ["_could_v_modal", "_can_v_modal"]
         if is_cond:
             if x_act == "user":
                 if not x_obj is None:
@@ -460,27 +407,21 @@ def _have_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
 @Predication(vocabulary, names=["_be_v_id"])
 def _be_v_id(state, e_introduced_binding, x_actor_binding, x_object_binding):
     def criteria_bound(x_actor_binding, x_object_binding):
-        if "be" not in state.rel.keys():
-            report_error(["verbDoesntApply", "large", x_actor_binding.variable.name])
-            return False
 
-        else:
-            if (x_actor_binding, x_object_binding) in state.rel["be"] or (x_object_binding, x_actor_binding) in \
-                    state.rel["be"]:
-                return True
+        first_in_second = x_actor_binding in all_instances_and_spec(state, x_object_binding)
+        second_in_first = x_object_binding in all_instances_and_spec(state, x_actor_binding)
+
+        return first_in_second or second_in_first
 
     def unbound(x_object_binding):
+        for i in all_instances(state, x_object_binding):
+            yield i
+        for i in all_ancestors(state,x_object_binding):
+            yield i
         yield x_object_binding
-        if "be" in state.rel.keys():
-            for i in state.rel["be"]:
-                if i[1] == x_object_binding:
-                    yield i[0]
-                if i[0] == x_object_binding:
-                    yield i[1]
 
     yield from in_style_predication_2(state, x_actor_binding, x_object_binding, criteria_bound, unbound,
                                       unbound)
-
 
 # Generates all the responses that predications can
 # return when an error occurs
@@ -513,7 +454,7 @@ def generate_custom_message(tree_info, error_term):
 def reset():
     # return State([])
     # initial_state = WorldState({}, ["pizza", "computer", "salad", "soup", "steak", "ham", "meat","special"])
-    initial_state = WorldState({}, ["salad", "soup", "special", "salad1", "table", "menu"])
+    initial_state = WorldState({}, ["salad", "soup", "soup1","special", "salad1", "table", "menu"])
 
     initial_state = initial_state.add_rel("special", "specializes", "food")
     initial_state = initial_state.add_rel("table", "specializes", "thing")
