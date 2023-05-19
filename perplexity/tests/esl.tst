@@ -155,6 +155,41 @@
             "Tree": "[polite(please,i5,e2), _can_v_modal(e2,_a_q(x13,_soup_n_1(x13),pronoun_q(x3,pron(x3),_have_v_1(e12,x3,x13))))]",
             "Enabled": true,
             "ID": "174208d7-868c-4bf4-b810-c6726d924990"
+        },
+        {
+            "Command": "/reset",
+            "Expected": "",
+            "Tree": "None",
+            "Enabled": true,
+            "ID": "b07ae6e3-85db-48f2-a330-ebd8e9175745"
+        },
+        {
+            "Command": "i could want a soup",
+            "Expected": "Sorry, you must be seated to order",
+            "Tree": "_could_v_modal(e2,_a_q(x11,_soup_n_1(x11),pronoun_q(x3,pron(x3),_want_v_1(e10,x3,x11))))",
+            "Enabled": true,
+            "ID": "51d16d4d-0491-4d09-930e-d8143315bafa"
+        },
+        {
+            "Command": "i could want a table",
+            "Expected": "Right this way!\nThe robot shows you to a wooden table",
+            "Tree": "_could_v_modal(e2,_a_q(x11,_table_n_1(x11),pronoun_q(x3,pron(x3),_want_v_1(e10,x3,x11))))",
+            "Enabled": true,
+            "ID": "a007eda8-42e2-49a4-85f7-b8a92fe172e6"
+        },
+        {
+            "Command": "i could have a tabble",
+            "Expected": "I don't know the words: tabble/nn",
+            "Tree": "None",
+            "Enabled": true,
+            "ID": "274b74e0-a5c6-439d-83d3-d7c4b1a8032d"
+        },
+        {
+            "Command": "i could have a table",
+            "Expected": "Um... You're at a table",
+            "Tree": "_could_v_modal(e2,_a_q(x11,_table_n_1(x11),pronoun_q(x3,pron(x3),_have_v_1(e10,x3,x11))))",
+            "Enabled": true,
+            "ID": "1ce964ae-7303-4d32-9dae-ffc8cfa8f26f"
         }
     ]
 }
