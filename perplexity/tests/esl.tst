@@ -239,6 +239,27 @@
             "Tree": "_which_q(x3,_steak_n_1(x3),_the_q(x8,_menu_n_1(x8),_on_p_loc(e2,x3,x8)))",
             "Enabled": true,
             "ID": "0c0a76e5-cae2-4970-a982-06032c3a16eb"
+        },
+        {
+            "Command": "i want a table",
+            "Expected": "Robot: Right this way!\nThe robot shows you to a wooden table\nRobot: I hope you have a lovely dining experience with us today. Make sure to ask your waiter for the specials!\nA minute passes \nRobot Waiter: Hello! How can I help you?",
+            "Tree": "pronoun_q(x3,pron(x3),_a_q(x8,_table_n_1(x8),_want_v_1(e2,x3,x8)))",
+            "Enabled": true,
+            "ID": "b4b0c5c3-3fd4-4dad-98c8-080b09f080e4"
+        },
+        {
+            "Command": "i would like a salad",
+            "Expected": "Excellent Choice! Coming right up!",
+            "Tree": "_would_v_modal(e2,_a_q(x11,_salad_n_1(x11),pronoun_q(x3,pron(x3),_like_v_1(e10,x3,x11))))",
+            "Enabled": true,
+            "ID": "2a68e0fa-4dfc-4213-8f3b-9a3ea695ca5d"
+        },
+        {
+            "Command": "i would like the check please",
+            "Expected": "Your total is 3 dollars. Would you like to pay by cash or card?",
+            "Tree": "_would_v_modal(e2,_the_q(x11,_check_n_of(x11,i16),pronoun_q(x3,pron(x3),[_please_a_1(e17,e10), _like_v_1(e10,x3,x11)])))",
+            "Enabled": true,
+            "ID": "2ea04da8-107f-402b-b967-e0bac745e264"
         }
     ]
 }

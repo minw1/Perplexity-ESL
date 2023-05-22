@@ -19,10 +19,11 @@ vocabulary = system_vocabulary()
 
 
 class WorldState(State):
-    def __init__(self, relations, entities):
+    def __init__(self, relations, entities, system):
         super().__init__([])
         self.rel = relations
         self.ent = entities
+        self.sys = system
 
     def all_individuals(self):
         for i in self.ent:
@@ -34,7 +35,7 @@ class WorldState(State):
             newrel[relname] = [(first, second)]
         else:
             newrel[relname] += [(first, second)]
-        return WorldState(newrel, self.ent)
+        return WorldState(newrel, self.ent, self.sys)
 
     def _mutate_add_rel(self, first, relname, second):
         newrel = copy.deepcopy(self.rel)
@@ -42,6 +43,23 @@ class WorldState(State):
             newrel[relname] = [(first, second)]
         else:
             newrel[relname] += [(first, second)]
+        self.rel = newrel
+
+    def _mutate_reset_rel(self, keyname):
+        newrel = copy.deepcopy(self.rel)
+        newrel.pop(keyname, None)
+        self.rel = newrel
+    def _mutate_set_bill(self, newval):
+        newrel = copy.deepcopy(self.rel)
+        for i in range(len(newrel["valueOf"])):
+            if newrel["valueOf"][i][1] == "bill1":
+                newrel["valueOf"][i][0] = (newval, "bill1")
+        self.rel = newrel
+    def _mutate_add_bill(self, addition):
+        newrel = copy.deepcopy(self.rel)
+        for i in range(len(newrel["valueOf"])):
+            if newrel["valueOf"][i][1] == "bill1":
+                newrel["valueOf"][i] = (addition + newrel["valueOf"][i][0], "bill1")
         self.rel = newrel
 
 
@@ -131,6 +149,15 @@ class AddRelOp(object):
     def apply_to(self, state):
         state._mutate_add_rel(self.toAdd[0], self.toAdd[1], self.toAdd[2])
 
+class AddBillOp(object):
+    def __init__(self, item):
+        self.toAdd = item
+
+    def apply_to(self, state):
+        prices = state.sys["prices"]
+        assert(self.toAdd in prices)
+        state._mutate_add_bill(prices[self.toAdd])
+
 
 def user_wants(state, wanted):
     if not wanted in state.ent:
@@ -140,7 +167,8 @@ def user_wants(state, wanted):
         if i == wanted:
             if "at" in state.rel.keys():
                 if ("user", "table") in state.rel["at"]:
-                    return [RespondOperation("Excellent Choice! Coming right up!"), AddRelOp(("user", "ordered", wanted))]
+                    return [RespondOperation("Excellent Choice! Coming right up!"),
+                            AddRelOp(("user", "ordered", wanted)), AddBillOp(wanted)]
             return [RespondOperation("Sorry, you must be seated to order")]
 
     for i in all_instances_and_spec(state, "table"):
@@ -157,6 +185,14 @@ def user_wants(state, wanted):
                 if ("user", "table") in state.rel["at"]:
                     return [RespondOperation("Here's the menu...\n...menu goes here...")]
             return [RespondOperation("Sorry, you must be seated to order")]
+
+    if wanted == "bill1":
+        for i in state.rel["valueOf"]:
+            if i[1] == "bill1":
+                total = i[0]
+                return [RespondOperation("Your total is " + str(total) + " dollars. Would you like to pay by cash or card?")]
+
+    return [RespondOperation("Sorry, I can't get that for you at the moment.")]
 
 
 @Predication(vocabulary, names=["pron"])
@@ -195,7 +231,7 @@ def generic_entity(state, x_who_binding):
 
 
 def handles_noun(noun_lemma):
-    return noun_lemma in ["special", "food", "menu", "soup", "salad", "table", "thing", "steak", "meat"]
+    return noun_lemma in ["special", "food", "menu", "soup", "salad", "table", "thing", "steak", "meat", "bill", "check"]
 
 
 # Simple example of using match_all that doesn't do anything except
@@ -281,7 +317,7 @@ def _want_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
                 yield success_state.record_operations(user_wants(state, x_obj))
 
 
-@Predication(vocabulary, names=["_give_v_1","_get_v_1"])
+@Predication(vocabulary, names=["_give_v_1", "_get_v_1"])
 def _give_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding, x_target_binding):
     if state.get_binding(x_actor_binding.variable.name).value[0] == "computer":
         if state.get_binding(x_target_binding.variable.name).value[0] == "user":
@@ -499,7 +535,12 @@ def generate_custom_message(tree_info, error_term):
 def reset():
     # return State([])
     # initial_state = WorldState({}, ["pizza", "computer", "salad", "soup", "steak", "ham", "meat","special"])
-    initial_state = WorldState({}, ["salad", "soup", "soup1", "special", "salad1", "table", "table1", "menu", "menu1", "pizza", "pizza1", "steak", "steak1", "meat"])
+    initial_state = WorldState({},
+                               ["salad", "soup", "soup1", "special", "salad1", "table", "table1", "menu", "menu1",
+                                    "pizza", "pizza1", "steak", "steak1", "meat", "bill", "bill1", "check"],
+                               {"prices": {"salad1": 3, "steak1": 10, "soup1": 4},
+
+                                })
 
     initial_state = initial_state.add_rel("special", "specializes", "food")
     initial_state = initial_state.add_rel("table", "specializes", "thing")
@@ -521,9 +562,15 @@ def reset():
     initial_state = initial_state.add_rel("computer", "have", "salad1")
     initial_state = initial_state.add_rel("computer", "have", "soup1")
     initial_state = initial_state.add_rel("computer", "have", "steak1")
+    initial_state = initial_state.add_rel("user","have","bill1")
 
     initial_state = initial_state.add_rel("steak1", "on", "menu1")
 
+    initial_state = initial_state.add_rel("bill", "specializes", "thing")
+    initial_state = initial_state.add_rel("check", "specializes", "thing")
+    initial_state = initial_state.add_rel("bill1", "instanceOf", "bill")
+    initial_state = initial_state.add_rel("bill1", "instanceOf", "check")
+    initial_state = initial_state.add_rel(0, "valueOf", "bill1")
 
     initial_state = initial_state.add_rel("room", "contains", "user")
 
