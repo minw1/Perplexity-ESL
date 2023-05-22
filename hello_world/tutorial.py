@@ -136,11 +136,11 @@ def user_wants(state, wanted):
     if not wanted in state.ent:
         return [RespondOperation("Sorry, we don't have that.")]
 
-    for i in all_instances_and_spec(state, "special"):
+    for i in all_instances_and_spec(state, "food"):
         if i == wanted:
             if "at" in state.rel.keys():
                 if ("user", "table") in state.rel["at"]:
-                    return [RespondOperation("Coming right up!")]
+                    return [RespondOperation("Excellent Choice! Coming right up!"), AddRelOp(("user", "ordered", wanted))]
             return [RespondOperation("Sorry, you must be seated to order")]
 
     for i in all_instances_and_spec(state, "table"):
@@ -183,7 +183,7 @@ def pron(state, x_who_binding):
 
 
 @Predication(vocabulary, names=["generic_entity"])
-def ge(state, x_who_binding):
+def generic_entity(state, x_who_binding):
     def bound(val):
         return val in state.ent
 
@@ -195,7 +195,7 @@ def ge(state, x_who_binding):
 
 
 def handles_noun(noun_lemma):
-    return noun_lemma in ["special", "food", "menu", "soup", "salad", "table", "thing"]
+    return noun_lemma in ["special", "food", "menu", "soup", "salad", "table", "thing", "steak", "meat"]
 
 
 # Simple example of using match_all that doesn't do anything except
@@ -281,7 +281,7 @@ def _want_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
                 yield success_state.record_operations(user_wants(state, x_obj))
 
 
-@Predication(vocabulary, names=["_give_v_1"])
+@Predication(vocabulary, names=["_give_v_1","_get_v_1"])
 def _give_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding, x_target_binding):
     if state.get_binding(x_actor_binding.variable.name).value[0] == "computer":
         if state.get_binding(x_target_binding.variable.name).value[0] == "user":
@@ -499,25 +499,32 @@ def generate_custom_message(tree_info, error_term):
 def reset():
     # return State([])
     # initial_state = WorldState({}, ["pizza", "computer", "salad", "soup", "steak", "ham", "meat","special"])
-    initial_state = WorldState({}, ["salad", "soup", "soup1", "special", "salad1", "table", "table1", "menu", "pizza","pizza1"])
+    initial_state = WorldState({}, ["salad", "soup", "soup1", "special", "salad1", "table", "table1", "menu", "menu1", "pizza", "pizza1", "steak", "steak1", "meat"])
 
     initial_state = initial_state.add_rel("special", "specializes", "food")
     initial_state = initial_state.add_rel("table", "specializes", "thing")
     initial_state = initial_state.add_rel("menu", "specializes", "thing")
     initial_state = initial_state.add_rel("food", "specializes", "thing")
     initial_state = initial_state.add_rel("pizza", "specializes", "food")
+    initial_state = initial_state.add_rel("meat", "specializes", "food")
+    initial_state = initial_state.add_rel("steak", "specializes", "meat")
 
     initial_state = initial_state.add_rel("salad1", "instanceOf", "salad")
     initial_state = initial_state.add_rel("table1", "instanceOf", "table")
     initial_state = initial_state.add_rel("soup1", "instanceOf", "soup")
     initial_state = initial_state.add_rel("menu1", "instanceOf", "menu")
     initial_state = initial_state.add_rel("pizza1", "instanceOf", "pizza")
+    initial_state = initial_state.add_rel("steak1", "instanceOf", "steak")
 
     initial_state = initial_state.add_rel("soup", "specializes", "special")
     initial_state = initial_state.add_rel("salad", "specializes", "special")
     initial_state = initial_state.add_rel("computer", "have", "salad1")
     initial_state = initial_state.add_rel("computer", "have", "soup1")
-    initial_state = initial_state.add_rel("pizza1", "on", "menu")
+    initial_state = initial_state.add_rel("computer", "have", "steak1")
+
+    initial_state = initial_state.add_rel("steak1", "on", "menu1")
+
+
     initial_state = initial_state.add_rel("room", "contains", "user")
 
     return initial_state

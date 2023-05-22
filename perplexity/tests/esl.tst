@@ -18,7 +18,7 @@
         },
         {
             "Command": "i want a salad",
-            "Expected": "Coming right up!",
+            "Expected": "Excellent Choice! Coming right up!",
             "Tree": "pronoun_q(x3,pron(x3),_a_q(x8,_salad_n_1(x8),_want_v_1(e2,x3,x8)))",
             "Enabled": true,
             "ID": "5ddd22cc-9912-4bae-87e9-6af5d96aa3cb"
@@ -53,7 +53,7 @@
         },
         {
             "Command": "give me a salad",
-            "Expected": "Coming right up!",
+            "Expected": "Excellent Choice! Coming right up!",
             "Tree": "pronoun_q(x9,pron(x9),_a_q(x8,_salad_n_1(x8),pronoun_q(x3,pron(x3),_give_v_1(e2,x3,x8,x9))))",
             "Enabled": true,
             "ID": "518d7323-ecc1-4b03-83b5-8665f2896686"
@@ -95,7 +95,7 @@
         },
         {
             "Command": "I would like a salad",
-            "Expected": "Coming right up!",
+            "Expected": "Excellent Choice! Coming right up!",
             "Tree": "_would_v_modal(e2,_a_q(x11,_salad_n_1(x11),pronoun_q(x3,pron(x3),_like_v_1(e10,x3,x11))))",
             "Enabled": true,
             "ID": "05295d60-471a-4adc-926e-d642fcfa44f0"
@@ -123,7 +123,7 @@
         },
         {
             "Command": "could i have a soup?",
-            "Expected": "Coming right up!",
+            "Expected": "Excellent Choice! Coming right up!",
             "Tree": "_could_v_modal(e2,_a_q(x11,_soup_n_1(x11),pronoun_q(x3,pron(x3),_have_v_1(e10,x3,x11))))",
             "Enabled": true,
             "ID": "77c115f7-6d33-4f8c-b4fb-ae6fa743a146"
@@ -151,7 +151,7 @@
         },
         {
             "Command": "please, can I have a soup?",
-            "Expected": "Coming right up!",
+            "Expected": "Excellent Choice! Coming right up!",
             "Tree": "[polite(please,i5,e2), _can_v_modal(e2,_a_q(x13,_soup_n_1(x13),pronoun_q(x3,pron(x3),_have_v_1(e12,x3,x13))))]",
             "Enabled": true,
             "ID": "174208d7-868c-4bf4-b810-c6726d924990"
@@ -207,10 +207,38 @@
         },
         {
             "Command": "could i have a salad today",
-            "Expected": "Coming right up!",
+            "Expected": "Excellent Choice! Coming right up!",
             "Tree": "_could_v_modal(e2,_a_q(x11,_salad_n_1(x11),def_implicit_q(x17,[time_n(x17), _today_a_1(e22,x17)],pronoun_q(x3,pron(x3),[loc_nonsp(e16,e10,x17), _have_v_1(e10,x3,x11)]))))",
             "Enabled": true,
             "ID": "9de64934-cdc9-45f3-ba14-8f7e4421151c"
+        },
+        {
+            "Command": "/reset",
+            "Expected": "",
+            "Tree": "None",
+            "Enabled": true,
+            "ID": "ee00db49-d717-467a-a25f-a9ef79746c1a"
+        },
+        {
+            "Command": "what's on the menu?'",
+            "Expected": "('steak1',)",
+            "Tree": "which_q(x3,thing(x3),_the_q(x8,_menu_n_1(x8),_on_p_loc(e2,x3,x8)))",
+            "Enabled": true,
+            "ID": "354751bb-de4b-495b-a582-2481669c1ae1"
+        },
+        {
+            "Command": "what food is on the menu?",
+            "Expected": "('steak1',)",
+            "Tree": "_which_q(x3,_food_n_1(x3),_the_q(x8,_menu_n_1(x8),_on_p_loc(e2,x3,x8)))",
+            "Enabled": true,
+            "ID": "c7ec0bb5-ae28-442a-8e60-f62ab503244e"
+        },
+        {
+            "Command": "what steak is on the menu?",
+            "Expected": "('steak1',)",
+            "Tree": "_which_q(x3,_steak_n_1(x3),_the_q(x8,_menu_n_1(x8),_on_p_loc(e2,x3,x8)))",
+            "Enabled": true,
+            "ID": "0c0a76e5-cae2-4970-a982-06032c3a16eb"
         }
     ]
 }
