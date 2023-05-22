@@ -62,6 +62,8 @@ class WorldState(State):
                 newrel["valueOf"][i] = (addition + newrel["valueOf"][i][0], "bill1")
         self.rel = newrel
 
+    def _mutate_set_response_state(self, newState):
+        self.sys["responseState"] = newState
 
 def sort_of(state, thing, possible_type):
     if thing == possible_type:
@@ -190,7 +192,11 @@ def user_wants(state, wanted):
         for i in state.rel["valueOf"]:
             if i[1] == "bill1":
                 total = i[0]
-                return [RespondOperation("Your total is " + str(total) + " dollars. Would you like to pay by cash or card?")]
+                if not total == 0:
+                    state._mutate_set_reponse_state("way_to_pay")
+                    return [RespondOperation("Your total is " + str(total) + " dollars. Would you like to pay by cash or card?")]
+                else:
+                    return [RespondOperation("But... you haven't ordered anything yet!")]
 
     return [RespondOperation("Sorry, I can't get that for you at the moment.")]
 
@@ -228,6 +234,22 @@ def generic_entity(state, x_who_binding):
             yield i
 
     yield from combinatorial_style_predication_1(state, x_who_binding, bound, unbound)
+
+@Predication(vocabulary, names=["_cash_n_1"])
+def _cash_n_1(state, x):
+    def bound(val):
+        return x == "cash"
+
+    def unbound():
+        yield "cash"
+
+    yield from combinatorial_style_predication_1(state, x, bound, unbound)
+
+
+
+@Predication(vocabulary, names=["unknown"])
+def unknown(state, e_binding, x_binding):
+    yield state
 
 
 def handles_noun(noun_lemma):
@@ -538,7 +560,7 @@ def reset():
     initial_state = WorldState({},
                                ["salad", "soup", "soup1", "special", "salad1", "table", "table1", "menu", "menu1",
                                     "pizza", "pizza1", "steak", "steak1", "meat", "bill", "bill1", "check"],
-                               {"prices": {"salad1": 3, "steak1": 10, "soup1": 4},
+                               {"prices": {"salad1": 3, "steak1": 10, "soup1": 4}, "responseState" : "default"
 
                                 })
 
