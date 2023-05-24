@@ -175,8 +175,12 @@ def user_wants(state, wanted):
         if i == wanted:
             if "at" in state.rel.keys():
                 if ("user", "table") in state.rel["at"]:
-                    return [RespondOperation("Excellent Choice! Coming right up!"),
-                            AddRelOp(("user", "ordered", wanted)), AddBillOp(wanted)]
+                    if "ordered" in state.rel.keys():
+                        if ("user", wanted) in state.rel["ordered"]:
+                            return [RespondOperation("Sorry, you got the last one of those. We don't have any more.")]
+
+                    return [RespondOperation("Excellent Choice! Can I get you anything else?"),
+                            AddRelOp(("user", "ordered", wanted)), AddBillOp(wanted), ResponseStateOp("anything_else")]
             return [RespondOperation("Sorry, you must be seated to order")]
 
     for i in all_instances_and_spec(state, "table"):
@@ -250,13 +254,39 @@ def _cash_n_1(state, x_bind):
 
     yield from combinatorial_style_predication_1(state, x_bind, bound, unbound)
 
+@Predication(vocabulary, names=["_card_n_1"])
+def _card_n_1(state, x_bind):
+    def bound(val):
+        return val == "card"
+
+    def unbound():
+        yield "card"
+
+    yield from combinatorial_style_predication_1(state, x_bind, bound, unbound)
 
 
 
 @Predication(vocabulary, names=["unknown"])
 def unknown(state, e_binding, x_binding):
-    if x_binding.value[0] == "cash" and state.sys["responseState"] == "way_to_pay":
+    if x_binding.value[0] in ["cash","card"] and state.sys["responseState"] == "way_to_pay":
         yield state.record_operations([RespondOperation("Ah. Perfect!")])
+    else:
+        yield state.record_operations([RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")])
+@Predication(vocabulary, names=["unknown"])
+def unknown(state, e_binding, u_binding):
+    yield state
+
+@Predication(vocabulary, names=["_yes_a_1"])
+def _yes_a_1(state, i_binding, h_binding):
+    if state.sys["responseState"] == "anything_else":
+        yield state.record_operations([RespondOperation("What else?")])
+    else:
+        yield state.record_operations([RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")])
+
+@Predication(vocabulary, names=["_no_a_1"])
+def _no_a_1(state, i_binding, h_binding):
+    if state.sys["responseState"] == "anything_else":
+        yield state.record_operations([RespondOperation("Ok, I'll be right back with your meal")])
     else:
         yield state.record_operations([RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")])
 
@@ -480,7 +510,7 @@ def polite(state, c_arg, i_binding, e_binding):
     yield state
 
 
-@Predication(vocabulary, names=["_have_v_1"])
+@Predication(vocabulary, names=["_have_v_1","_get_v_1"])
 def _have_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
     def criteria_bound(x_actor_binding, x_object_binding):
         j = state.get_binding("tree").value[0]["Index"]
