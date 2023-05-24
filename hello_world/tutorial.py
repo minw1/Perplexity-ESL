@@ -273,13 +273,13 @@ def unknown(state, e_binding, x_binding):
     else:
         yield state.record_operations([RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")])
 @Predication(vocabulary, names=["unknown"])
-def unknown(state, e_binding, u_binding):
+def unknown_eu(state, e_binding, u_binding):
     yield state
 
 @Predication(vocabulary, names=["_yes_a_1"])
 def _yes_a_1(state, i_binding, h_binding):
     if state.sys["responseState"] == "anything_else":
-        yield state.record_operations([RespondOperation("What else?")])
+        yield state.record_operations([RespondOperation("What else?"), ResponseStateOp("anticipate_dish")])
     else:
         yield state.record_operations([RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")])
 
@@ -509,6 +509,9 @@ def _could_v_modal(state, e_introduced_binding, h_binding):
 def polite(state, c_arg, i_binding, e_binding):
     yield state
 
+@Predication(vocabulary, names=["_thanks_a_1"])
+def _thanks_a_1(state, i_binding, h_binding):
+    yield from call(state,h_binding)
 
 @Predication(vocabulary, names=["_have_v_1","_get_v_1"])
 def _have_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
