@@ -193,7 +193,7 @@ def user_wants(state, wanted):
             if i[1] == "bill1":
                 total = i[0]
                 if not total == 0:
-                    state._mutate_set_reponse_state("way_to_pay")
+                    state._mutate_set_response_state("way_to_pay")
                     return [RespondOperation("Your total is " + str(total) + " dollars. Would you like to pay by cash or card?")]
                 else:
                     return [RespondOperation("But... you haven't ordered anything yet!")]
@@ -236,14 +236,15 @@ def generic_entity(state, x_who_binding):
     yield from combinatorial_style_predication_1(state, x_who_binding, bound, unbound)
 
 @Predication(vocabulary, names=["_cash_n_1"])
-def _cash_n_1(state, x):
+def _cash_n_1(state, x_bind):
     def bound(val):
-        return x == "cash"
+        return val == "cash"
 
     def unbound():
         yield "cash"
 
-    yield from combinatorial_style_predication_1(state, x, bound, unbound)
+    yield from combinatorial_style_predication_1(state, x_bind, bound, unbound)
+
 
 
 
@@ -338,6 +339,21 @@ def _want_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
             if not x_obj is None:
                 yield success_state.record_operations(user_wants(state, x_obj))
 
+@Predication(vocabulary, names=["_check_v_1"])
+def _check_v_1(state, e_introduced_binding, x_actor_binding, i_object_binding):
+    if i_object_binding.value is not None:
+        return
+
+    def criteria_bound(x):
+        return x == "computer"
+
+    def unbound():
+        if False:
+            yield None
+
+    for success_state in combinatorial_style_predication_1(state, x_actor_binding, criteria_bound, unbound):
+            yield success_state.record_operations(user_wants(state, "bill1"))
+
 
 @Predication(vocabulary, names=["_give_v_1", "_get_v_1"])
 def _give_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding, x_target_binding):
@@ -346,6 +362,15 @@ def _give_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding, x_
             if not state.get_binding(x_object_binding.variable.name).value[0] is None:
                 yield state.record_operations(
                     user_wants(state, state.get_binding(x_object_binding.variable.name).value[0]))
+
+@Predication(vocabulary, names=["_show_v_1"])
+def _show_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding, x_target_binding):
+    if state.get_binding(x_actor_binding.variable.name).value[0] == "computer":
+        if state.get_binding(x_target_binding.variable.name).value[0] == "user":
+            if not state.get_binding(x_object_binding.variable.name).value[0] is None:
+                if state.get_binding(x_object_binding.variable.name).value[0] == "menu1":
+                    yield state.record_operations(
+                        user_wants(state, state.get_binding(x_object_binding.variable.name).value[0]))
 
 
 @Predication(vocabulary, names=["loc_nonsp"])
@@ -490,6 +515,8 @@ def _have_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
                     yield success_state.record_operations(user_wants(state, x_obj))
         else:
             yield success_state
+
+
 
 
 @Predication(vocabulary, names=["poss"])

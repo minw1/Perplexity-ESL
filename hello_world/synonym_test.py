@@ -1,7 +1,12 @@
 from gensim.models import KeyedVectors
 from nltk.corpus import wordnet as wn
 import copy
-# load the Stanford GloVe model
+from nltk.corpus import wordnet_ic
+
+
+brown_ic = wordnet_ic.ic('ic-brown.dat')
+
+
 filename = 'glove/glove.6B.200d.txt'
 print("loading glove embeddings")
 model = KeyedVectors.load_word2vec_format(filename, binary=False, no_header=True)
@@ -12,9 +17,13 @@ def wn_similarity(w1, w2):
     topscore = -1
     for i in wn.synsets(w1):
         for j in wn.synsets(w2):
-            ws = i.wup_similarity(j)
-            if ws > topscore:
-                topscore = ws
+            #ws = i.wup_similarity(j)
+            try:
+                ws = wn.lin_similarity(i,j,brown_ic)
+                if ws > topscore:
+                    topscore = ws
+            except:
+                pass
     return topscore
 
 #x is word
@@ -46,6 +55,14 @@ print(model.similarity("soup","ramen"))
 print(model.similarity("soup","gazpacho"))
 print(model.similarity("soup","metal"))
 print(model.similarity("soup","chicken"))
+
+print(wn_similarity("soup","leaf"))
+print(wn_similarity("soup","vegetable"))
+print(wn_similarity("soup","ramen"))
+print(wn_similarity("soup","gazpacho"))
+print(wn_similarity("soup","metal"))
+print(wn_similarity("soup","chicken"))
+
 
 
 print(synonym_replace("I want a ribeye".lower().split(), system_vocabulary, 0.4, model.similarity))
