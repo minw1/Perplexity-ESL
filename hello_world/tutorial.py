@@ -529,7 +529,8 @@ def _have_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
         j = state.get_binding("tree").value[0]["Index"]
         is_cond = find_predication_from_introduced(state.get_binding("tree").value[0]["Tree"], j).name in [
             "_could_v_modal", "_can_v_modal"]
-        if (is_cond):
+        is_fut = (state.get_binding("tree").value[0]["Variables"][j]["TENSE"] == "fut")
+        if (is_cond or is_fut):
             return True
         else:
             if "have" in state.rel.keys():
@@ -560,7 +561,9 @@ def _have_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
         j = state.get_binding("tree").value[0]["Index"]
         is_cond = find_predication_from_introduced(state.get_binding("tree").value[0]["Tree"],
                                                    j).name in ["_could_v_modal", "_can_v_modal"]
-        if is_cond:
+        is_fut = (state.get_binding("tree").value[0]["Variables"][j]["TENSE"] == "fut")
+
+        if is_cond or is_fut:
             if x_act == "user":
                 if not x_obj is None:
                     yield success_state.record_operations(user_wants(state, x_obj))
