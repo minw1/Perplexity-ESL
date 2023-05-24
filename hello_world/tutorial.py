@@ -268,8 +268,18 @@ def _card_n_1(state, x_bind):
 
 @Predication(vocabulary, names=["unknown"])
 def unknown(state, e_binding, x_binding):
-    if x_binding.value[0] in ["cash","card"] and state.sys["responseState"] == "way_to_pay":
-        yield state.record_operations([RespondOperation("Ah. Perfect!")])
+
+    if state.sys["responseState"] == "way_to_pay":
+        if x_binding.value[0] in ["cash", "card"]:
+            yield state.record_operations([RespondOperation("Ah. Perfect!")])
+        else:
+            yield state.record_operations(
+                [RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")])
+    elif state.sys["responseState"] in ["anticipate_dish", "anything_else"]:
+        if x_binding.value[0] in state.ent:
+            yield state.record_operations(user_wants(state, x_binding.value[0]))
+        else:
+            yield state.record_operations([RespondOperation("Sorry, we don't have that")])
     else:
         yield state.record_operations([RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")])
 @Predication(vocabulary, names=["unknown"])

@@ -18,7 +18,7 @@
         },
         {
             "Command": "i want a salad",
-            "Expected": "Excellent Choice! Coming right up!",
+            "Expected": "Excellent Choice! Can I get you anything else?",
             "Tree": "pronoun_q(x3,pron(x3),_a_q(x8,_salad_n_1(x8),_want_v_1(e2,x3,x8)))",
             "Enabled": true,
             "ID": "5ddd22cc-9912-4bae-87e9-6af5d96aa3cb"
@@ -53,7 +53,7 @@
         },
         {
             "Command": "give me a salad",
-            "Expected": "Excellent Choice! Coming right up!",
+            "Expected": "Excellent Choice! Can I get you anything else?",
             "Tree": "pronoun_q(x9,pron(x9),_a_q(x8,_salad_n_1(x8),pronoun_q(x3,pron(x3),_give_v_1(e2,x3,x8,x9))))",
             "Enabled": true,
             "ID": "518d7323-ecc1-4b03-83b5-8665f2896686"
@@ -95,7 +95,7 @@
         },
         {
             "Command": "I would like a salad",
-            "Expected": "Excellent Choice! Coming right up!",
+            "Expected": "Excellent Choice! Can I get you anything else?",
             "Tree": "_would_v_modal(e2,_a_q(x11,_salad_n_1(x11),pronoun_q(x3,pron(x3),_like_v_1(e10,x3,x11))))",
             "Enabled": true,
             "ID": "05295d60-471a-4adc-926e-d642fcfa44f0"
@@ -123,7 +123,7 @@
         },
         {
             "Command": "could i have a soup?",
-            "Expected": "Excellent Choice! Coming right up!",
+            "Expected": "Excellent Choice! Can I get you anything else?",
             "Tree": "_could_v_modal(e2,_a_q(x11,_soup_n_1(x11),pronoun_q(x3,pron(x3),_have_v_1(e10,x3,x11))))",
             "Enabled": true,
             "ID": "77c115f7-6d33-4f8c-b4fb-ae6fa743a146"
@@ -151,7 +151,7 @@
         },
         {
             "Command": "please, can I have a soup?",
-            "Expected": "Excellent Choice! Coming right up!",
+            "Expected": "Excellent Choice! Can I get you anything else?",
             "Tree": "[polite(please,i5,e2), _can_v_modal(e2,_a_q(x13,_soup_n_1(x13),pronoun_q(x3,pron(x3),_have_v_1(e12,x3,x13))))]",
             "Enabled": true,
             "ID": "174208d7-868c-4bf4-b810-c6726d924990"
@@ -207,7 +207,7 @@
         },
         {
             "Command": "could i have a salad today",
-            "Expected": "Excellent Choice! Coming right up!",
+            "Expected": "Excellent Choice! Can I get you anything else?",
             "Tree": "_could_v_modal(e2,_a_q(x11,_salad_n_1(x11),def_implicit_q(x17,[time_n(x17), _today_a_1(e22,x17)],pronoun_q(x3,pron(x3),[loc_nonsp(e16,e10,x17), _have_v_1(e10,x3,x11)]))))",
             "Enabled": true,
             "ID": "9de64934-cdc9-45f3-ba14-8f7e4421151c"
@@ -249,7 +249,7 @@
         },
         {
             "Command": "i would like a salad",
-            "Expected": "Excellent Choice! Coming right up!",
+            "Expected": "Excellent Choice! Can I get you anything else?",
             "Tree": "_would_v_modal(e2,_a_q(x11,_salad_n_1(x11),pronoun_q(x3,pron(x3),_like_v_1(e10,x3,x11))))",
             "Enabled": true,
             "ID": "2a68e0fa-4dfc-4213-8f3b-9a3ea695ca5d"
@@ -260,6 +260,34 @@
             "Tree": "_would_v_modal(e2,_the_q(x11,_check_n_of(x11,i16),pronoun_q(x3,pron(x3),[_please_a_1(e17,e10), _like_v_1(e10,x3,x11)])))",
             "Enabled": true,
             "ID": "2ea04da8-107f-402b-b967-e0bac745e264"
+        },
+        {
+            "Command": "could i get a table please",
+            "Expected": "Um... You're at a table",
+            "Tree": "_could_v_modal(e2,_a_q(x11,_table_n_1(x11),pronoun_q(x3,pron(x3),[_please_a_1(e16,e10), _get_v_1(e10,x3,x11)])))",
+            "Enabled": true,
+            "ID": "c3dd6d92-de46-4ea1-a7c3-25ee8f55f54e"
+        },
+        {
+            "Command": "i want a salad",
+            "Expected": "Sorry, you got the last one of those. We don't have any more.",
+            "Tree": "pronoun_q(x3,pron(x3),_a_q(x8,_salad_n_1(x8),_want_v_1(e2,x3,x8)))",
+            "Enabled": true,
+            "ID": "cb6be651-74fe-40a7-8e8f-c50d9344b132"
+        },
+        {
+            "Command": "check, please",
+            "Expected": "Your total is 3 dollars. Would you like to pay by cash or card?",
+            "Tree": "pronoun_q(x3,pron(x3),[_please_a_1(e9,e2), _check_v_1(e2,x3,i8)])",
+            "Enabled": true,
+            "ID": "2301e651-e1eb-46bd-aa90-ea5138898b07"
+        },
+        {
+            "Command": "card",
+            "Expected": "Ah. Perfect!",
+            "Tree": "udef_q(x4,_card_n_1(x4),unknown(e2,x4))",
+            "Enabled": true,
+            "ID": "08fd4e97-26b3-458c-9c6e-38a36677703b"
         }
     ]
 }
