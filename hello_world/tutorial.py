@@ -177,7 +177,7 @@ def user_wants(state, wanted):
                 if ("user", "table") in state.rel["at"]:
                     if "ordered" in state.rel.keys():
                         if ("user", wanted) in state.rel["ordered"]:
-                            return [RespondOperation("Sorry, you got the last one of those. We don't have any more.")]
+                            return [RespondOperation("Sorry, you got the last one of those. We don't have any more. Can I get you something else?"), ResponseStateOp("anything_else")]
 
                     return [RespondOperation("Excellent Choice! Can I get you anything else?"),
                             AddRelOp(("user", "ordered", wanted)), AddBillOp(wanted), ResponseStateOp("anything_else")]
@@ -187,7 +187,7 @@ def user_wants(state, wanted):
         if i == wanted:
             if "at" in state.rel.keys():
                 if ("user", "table") in state.rel["at"]:
-                    return [RespondOperation("Um... You're at a table")]
+                    return [RespondOperation("Um... You're at a table. Can I get you something else?")]
             return [AddRelOp(("user", "at", "table")),
                     RespondOperation(
                         "Robot: Right this way!\nThe robot shows you to a wooden table\nRobot: I hope you have a lovely dining experience with us today. Make sure to ask your waiter for the specials!\nA minute passes \nRobot Waiter: Hello! How can I help you?")]
@@ -202,10 +202,10 @@ def user_wants(state, wanted):
         for i in state.rel["valueOf"]:
             if i[1] == "bill1":
                 total = i[0]
-                if not total == 0:
+                if state.sys["responseState"] == "done_ordering":
                     return [RespondOperation("Your total is " + str(total) + " dollars. Would you like to pay by cash or card?"),ResponseStateOp("way_to_pay")]
                 else:
-                    return [RespondOperation("But... you haven't ordered anything yet!")]
+                    return [RespondOperation("But... you haven't got any food yet!")]
 
     return [RespondOperation("Sorry, I can't get that for you at the moment.")]
 
@@ -293,10 +293,10 @@ def _yes_a_1(state, i_binding, h_binding):
     else:
         yield state.record_operations([RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")])
 
-@Predication(vocabulary, names=["_no_a_1"])
+@Predication(vocabulary, names=["_no_a_1","_nope_a_1"])
 def _no_a_1(state, i_binding, h_binding):
     if state.sys["responseState"] == "anything_else":
-        yield state.record_operations([RespondOperation("Ok, I'll be right back with your meal")])
+        yield state.record_operations([RespondOperation("Ok, I'll be right back with your meal"),ResponseStateOp("done_ordering")])
     else:
         yield state.record_operations([RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")])
 
