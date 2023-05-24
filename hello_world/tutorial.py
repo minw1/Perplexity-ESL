@@ -160,6 +160,12 @@ class AddBillOp(object):
         assert(self.toAdd in prices)
         state._mutate_add_bill(prices[self.toAdd])
 
+class ResponseStateOp(object):
+    def __init__(self, item):
+        self.toAdd = item
+
+    def apply_to(self, state):
+        state._mutate_set_response_state(self.toAdd)
 
 def user_wants(state, wanted):
     if not wanted in state.ent:
@@ -193,8 +199,7 @@ def user_wants(state, wanted):
             if i[1] == "bill1":
                 total = i[0]
                 if not total == 0:
-                    state._mutate_set_response_state("way_to_pay")
-                    return [RespondOperation("Your total is " + str(total) + " dollars. Would you like to pay by cash or card?")]
+                    return [RespondOperation("Your total is " + str(total) + " dollars. Would you like to pay by cash or card?"),ResponseStateOp("way_to_pay")]
                 else:
                     return [RespondOperation("But... you haven't ordered anything yet!")]
 
@@ -250,7 +255,10 @@ def _cash_n_1(state, x_bind):
 
 @Predication(vocabulary, names=["unknown"])
 def unknown(state, e_binding, x_binding):
-    yield state
+    if x_binding.value[0] == "cash" and state.sys["responseState"] == "way_to_pay":
+        yield state.record_operations([RespondOperation("Ah. Perfect!")])
+    else:
+        yield state.record_operations([RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")])
 
 
 def handles_noun(noun_lemma):
