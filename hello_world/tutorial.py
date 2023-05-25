@@ -348,9 +348,12 @@ def match_all_n_i(noun_type, state, x_binding, i_binding):
 def on_p_loc(state, e_introduced_binding, x_actor_binding, x_location_binding):
     def check_item_on_item(item1, item2):
         if "on" in state.rel.keys():
-            return (item1, item2) in state.rel["on"]
+            if (item1, item2) in state.rel["on"]:
+                return True
+            else:
+                report_error(["notOn",item1,item2])
         else:
-            report_error(["notOn"])
+            report_error(["notOn",item1,item2])
 
     def all_item1_on_item2(item2):
         if "on" in state.rel.keys():
@@ -662,7 +665,10 @@ def generate_custom_message(tree_info, error_term):
         # that it represented in the MRS
         arg2 = english_for_delphin_variable(error_predicate_index, error_arguments[2], tree_info)
         return f"{arg1} is not {arg2}"
-
+    if error_constant == "notOn":
+        arg1 = error_arguments[1]
+        arg2 = error_arguments[2]
+        return f"No. {arg1} is not on {arg2}"
     else:
         # No custom message, just return the raw error for debugging
         return str(error_term)
@@ -714,7 +720,7 @@ def reset():
 
 
 def hello_world():
-    user_interface = UserInterface(reset, vocabulary)
+    user_interface = UserInterface(reset, vocabulary,message_function=generate_custom_message)
 
     while True:
         user_interface.interact_once()
