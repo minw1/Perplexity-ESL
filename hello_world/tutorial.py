@@ -195,7 +195,7 @@ def user_wants(state, wanted):
         if i == wanted:
             if "at" in state.rel.keys():
                 if ("user", "table") in state.rel["at"]:
-                    return [RespondOperation("Here's the menu...\n...menu goes here...")]
+                    return [RespondOperation("Here's the menu...\n...Steak -- $10...")]
             return [RespondOperation("Sorry, you must be seated to order")]
 
     if wanted == "bill1":
@@ -212,11 +212,11 @@ def user_wants(state, wanted):
 def user_wants_to_see(state, wanted):
     prompt_finish_order = "\nCan I get you anything else before I put your order in?" if state.sys["responseState"] in ["anything_else", "anticipate_dish"] else ""
     if wanted == "menu1":
-        return [RespondOperation("Here's the menu...\n...menu goes here..." + prompt_finish_order)]
+        return [RespondOperation("Here's the menu...\n...Steak -- $10..." + prompt_finish_order)]
     elif wanted == "table1":
-        return [RespondOperation("All our tables are nice... trust me on this one"+ prompt_finish_order)]
+        return [RespondOperation("All our tables are nice. Trust me on this one" + prompt_finish_order)]
     else:
-        return [RespondOperation("Sorry, I can't show you that."+ prompt_finish_order)]
+        return [RespondOperation("Sorry, I can't show you that." + prompt_finish_order)]
 
 @Predication(vocabulary, names=["pron"])
 def pron(state, x_who_binding):
@@ -279,7 +279,7 @@ def unknown(state, e_binding, x_binding):
 
     if state.sys["responseState"] == "way_to_pay":
         if x_binding.value[0] in ["cash", "card"]:
-            yield state.record_operations([RespondOperation("Ah. Perfect!")])
+            yield state.record_operations([RespondOperation("Ah. Perfect! Have a great rest of your day.")])
         else:
             yield state.record_operations(
                 [RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")])
@@ -294,7 +294,7 @@ def unknown(state, e_binding, x_binding):
 def unknown_eu(state, e_binding, u_binding):
     yield state
 
-@Predication(vocabulary, names=["_yes_a_1"])
+@Predication(vocabulary, names=["_yes_a_1", "_yup_a_1"])
 def _yes_a_1(state, i_binding, h_binding):
     if state.sys["responseState"] == "anything_else":
         yield state.record_operations([RespondOperation("What else?"), ResponseStateOp("anticipate_dish")])
@@ -304,7 +304,16 @@ def _yes_a_1(state, i_binding, h_binding):
 @Predication(vocabulary, names=["_no_a_1","_nope_a_1"])
 def _no_a_1(state, i_binding, h_binding):
     if state.sys["responseState"] == "anything_else":
-        yield state.record_operations([RespondOperation("Ok, I'll be right back with your meal"),ResponseStateOp("done_ordering")])
+        items = [i for (x, i) in state.rel["ordered"]]
+        item_str = ""
+        if len(items) == 1 :
+            item_str = "a "+ items[0]
+        if len(items) == 2:
+            item_str = "a " + items[0] + " and a " + items[1]
+        if len(items) == 3:
+            item_str = "a " + items[0] + ", a " + items[1] + ", and a " + items[2]
+
+        yield state.record_operations([RespondOperation("Ok, I'll be right back with your meal.\nA few minutes go by and the robot returns with " + item_str + ".\nThe food is good, but nothing extraordinary."), ResponseStateOp("done_ordering")])
     else:
         yield state.record_operations([RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")])
 
@@ -517,6 +526,10 @@ def _would_v_modal(state, e_introduced_binding, h_binding):
 def _please_a_1(state, e_introduced_binding, e_binding):
     yield state
 
+@Predication(vocabulary, names=["_please_v_1"])
+def _please_v_1(state, e_introduced_binding, i_binding1, i_binding2):
+    yield state
+
 
 @Predication(vocabulary, names=["_could_v_modal", "_can_v_modal"])
 def _could_v_modal(state, e_introduced_binding, h_binding):
@@ -581,7 +594,7 @@ class RequestVerb:
             else:
                 yield success_state
 
-have = RequestVerb(["_have_v_1","_get_v_1"],"have",user_wants)
+have = RequestVerb(["_have_v_1","_get_v_1","_take_v_1"],"have",user_wants)
 see = RequestVerb(["_see_v_1"], "see", user_wants_to_see)
 
 @Predication(vocabulary, names=have.pred_name_list)
