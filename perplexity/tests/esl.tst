@@ -60,14 +60,14 @@
         },
         {
             "Command": "give me a table",
-            "Expected": "Um... You're at a table",
+            "Expected": "Um... You're at a table. Can I get you something else?",
             "Tree": "pronoun_q(x9,pron(x9),_a_q(x8,_table_n_1(x8),pronoun_q(x3,pron(x3),_give_v_1(e2,x3,x8,x9))))",
             "Enabled": true,
             "ID": "65836ed2-d798-4120-8870-91c215cdb811"
         },
         {
             "Command": "i want a table",
-            "Expected": "Um... You're at a table",
+            "Expected": "Um... You're at a table. Can I get you something else?",
             "Tree": "pronoun_q(x3,pron(x3),_a_q(x8,_table_n_1(x8),_want_v_1(e2,x3,x8)))",
             "Enabled": true,
             "ID": "c46fcc1a-0a17-4345-938d-20307e0baad6"
@@ -130,7 +130,7 @@
         },
         {
             "Command": "could i have a table?",
-            "Expected": "Um... You're at a table",
+            "Expected": "Um... You're at a table. Can I get you something else?",
             "Tree": "_could_v_modal(e2,_a_q(x11,_table_n_1(x11),pronoun_q(x3,pron(x3),_have_v_1(e10,x3,x11))))",
             "Enabled": true,
             "ID": "6ded92f5-70e8-4d06-b6c3-530c12fc78c9"
@@ -186,7 +186,7 @@
         },
         {
             "Command": "i could have a table",
-            "Expected": "Um... You're at a table",
+            "Expected": "Um... You're at a table. Can I get you something else?",
             "Tree": "_could_v_modal(e2,_a_q(x11,_table_n_1(x11),pronoun_q(x3,pron(x3),_have_v_1(e10,x3,x11))))",
             "Enabled": true,
             "ID": "1ce964ae-7303-4d32-9dae-ffc8cfa8f26f"
@@ -200,7 +200,7 @@
         },
         {
             "Command": "i would like a table today",
-            "Expected": "Um... You're at a table",
+            "Expected": "Um... You're at a table. Can I get you something else?",
             "Tree": "_would_v_modal(e2,_a_q(x11,_table_n_1(x11),def_implicit_q(x17,[time_n(x17), _today_a_1(e22,x17)],pronoun_q(x3,pron(x3),[loc_nonsp(e16,e10,x17), _like_v_1(e10,x3,x11)]))))",
             "Enabled": true,
             "ID": "4bbf8169-3ea6-43c7-93b6-8f1070faf40e"
@@ -256,35 +256,35 @@
         },
         {
             "Command": "i would like the check please",
-            "Expected": "Your total is 3 dollars. Would you like to pay by cash or card?",
+            "Expected": "But... you haven't got any food yet!",
             "Tree": "_would_v_modal(e2,_the_q(x11,_check_n_of(x11,i16),pronoun_q(x3,pron(x3),[_please_a_1(e17,e10), _like_v_1(e10,x3,x11)])))",
             "Enabled": true,
             "ID": "2ea04da8-107f-402b-b967-e0bac745e264"
         },
         {
             "Command": "could i get a table please",
-            "Expected": "Um... You're at a table",
+            "Expected": "Um... You're at a table. Can I get you something else?",
             "Tree": "_could_v_modal(e2,_a_q(x11,_table_n_1(x11),pronoun_q(x3,pron(x3),[_please_a_1(e16,e10), _get_v_1(e10,x3,x11)])))",
             "Enabled": true,
             "ID": "c3dd6d92-de46-4ea1-a7c3-25ee8f55f54e"
         },
         {
             "Command": "i want a salad",
-            "Expected": "Sorry, you got the last one of those. We don't have any more.",
+            "Expected": "Sorry, you got the last one of those. We don't have any more. Can I get you something else?",
             "Tree": "pronoun_q(x3,pron(x3),_a_q(x8,_salad_n_1(x8),_want_v_1(e2,x3,x8)))",
             "Enabled": true,
             "ID": "cb6be651-74fe-40a7-8e8f-c50d9344b132"
         },
         {
             "Command": "check, please",
-            "Expected": "Your total is 3 dollars. Would you like to pay by cash or card?",
+            "Expected": "But... you haven't got any food yet!",
             "Tree": "pronoun_q(x3,pron(x3),[_please_a_1(e9,e2), _check_v_1(e2,x3,i8)])",
             "Enabled": true,
             "ID": "2301e651-e1eb-46bd-aa90-ea5138898b07"
         },
         {
             "Command": "card",
-            "Expected": "Ah. Perfect!",
+            "Expected": "Sorry, we don't have that",
             "Tree": "udef_q(x4,_card_n_1(x4),unknown(e2,x4))",
             "Enabled": true,
             "ID": "08fd4e97-26b3-458c-9c6e-38a36677703b"

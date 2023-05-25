@@ -49,12 +49,14 @@ class WorldState(State):
         newrel = copy.deepcopy(self.rel)
         newrel.pop(keyname, None)
         self.rel = newrel
+
     def _mutate_set_bill(self, newval):
         newrel = copy.deepcopy(self.rel)
         for i in range(len(newrel["valueOf"])):
             if newrel["valueOf"][i][1] == "bill1":
                 newrel["valueOf"][i][0] = (newval, "bill1")
         self.rel = newrel
+
     def _mutate_add_bill(self, addition):
         newrel = copy.deepcopy(self.rel)
         for i in range(len(newrel["valueOf"])):
@@ -64,6 +66,7 @@ class WorldState(State):
 
     def _mutate_set_response_state(self, newState):
         self.sys["responseState"] = newState
+
 
 def sort_of(state, thing, possible_type):
     if thing == possible_type:
@@ -151,14 +154,16 @@ class AddRelOp(object):
     def apply_to(self, state):
         state._mutate_add_rel(self.toAdd[0], self.toAdd[1], self.toAdd[2])
 
+
 class AddBillOp(object):
     def __init__(self, item):
         self.toAdd = item
 
     def apply_to(self, state):
         prices = state.sys["prices"]
-        assert(self.toAdd in prices)
+        assert (self.toAdd in prices)
         state._mutate_add_bill(prices[self.toAdd])
+
 
 class ResponseStateOp(object):
     def __init__(self, item):
@@ -166,6 +171,7 @@ class ResponseStateOp(object):
 
     def apply_to(self, state):
         state._mutate_set_response_state(self.toAdd)
+
 
 def user_wants(state, wanted):
     if not wanted in state.ent:
@@ -177,7 +183,9 @@ def user_wants(state, wanted):
                 if ("user", "table") in state.rel["at"]:
                     if "ordered" in state.rel.keys():
                         if ("user", wanted) in state.rel["ordered"]:
-                            return [RespondOperation("Sorry, you got the last one of those. We don't have any more. Can I get you something else?"), ResponseStateOp("anything_else")]
+                            return [RespondOperation(
+                                "Sorry, you got the last one of those. We don't have any more. Can I get you something else?"),
+                                ResponseStateOp("anything_else")]
 
                     return [RespondOperation("Excellent Choice! Can I get you anything else?"),
                             AddRelOp(("user", "ordered", wanted)), AddBillOp(wanted), ResponseStateOp("anything_else")]
@@ -187,7 +195,8 @@ def user_wants(state, wanted):
         if i == wanted:
             if "at" in state.rel.keys():
                 if ("user", "table") in state.rel["at"]:
-                    return [RespondOperation("Um... You're at a table. Can I get you something else?"), ResponseStateOp("anything_else")]
+                    return [RespondOperation("Um... You're at a table. Can I get you something else?"),
+                            ResponseStateOp("anything_else")]
             return [AddRelOp(("user", "at", "table")),
                     RespondOperation(
                         "Robot: Right this way!\nThe robot shows you to a wooden table\nRobot: I hope you have a lovely dining experience with us today. Make sure to ask your waiter for the specials!\nA minute passes \nRobot Waiter: Hello! How can I help you?")]
@@ -203,20 +212,25 @@ def user_wants(state, wanted):
             if i[1] == "bill1":
                 total = i[0]
                 if state.sys["responseState"] == "done_ordering":
-                    return [RespondOperation("Your total is " + str(total) + " dollars. Would you like to pay by cash or card?"),ResponseStateOp("way_to_pay")]
+                    return [RespondOperation(
+                        "Your total is " + str(total) + " dollars. Would you like to pay by cash or card?"),
+                        ResponseStateOp("way_to_pay")]
                 else:
                     return [RespondOperation("But... you haven't got any food yet!")]
 
     return [RespondOperation("Sorry, I can't get that for you at the moment.")]
 
+
 def user_wants_to_see(state, wanted):
-    prompt_finish_order = "\nCan I get you anything else before I put your order in?" if state.sys["responseState"] in ["anything_else", "anticipate_dish"] else ""
+    prompt_finish_order = "\nCan I get you anything else before I put your order in?" if state.sys["responseState"] in [
+        "anything_else", "anticipate_dish"] else ""
     if wanted == "menu1":
         return [RespondOperation("Here's the menu...\n...Steak -- $10..." + prompt_finish_order)]
     elif wanted == "table1":
         return [RespondOperation("All our tables are nice. Trust me on this one" + prompt_finish_order)]
     else:
         return [RespondOperation("Sorry, I can't show you that." + prompt_finish_order)]
+
 
 @Predication(vocabulary, names=["pron"])
 def pron(state, x_who_binding):
@@ -235,8 +249,6 @@ def pron(state, x_who_binding):
             yield "computer"
         if person == 1:
             yield "user"
-        else:
-            report_error(["dontKnowActor", x_who_binding.variable.name])
 
     yield from combinatorial_style_predication_1(state, x_who_binding, bound_variable, unbound_variable)
 
@@ -252,6 +264,7 @@ def generic_entity(state, x_who_binding):
 
     yield from combinatorial_style_predication_1(state, x_who_binding, bound, unbound)
 
+
 @Predication(vocabulary, names=["_cash_n_1"])
 def _cash_n_1(state, x_bind):
     def bound(val):
@@ -261,6 +274,7 @@ def _cash_n_1(state, x_bind):
         yield "cash"
 
     yield from combinatorial_style_predication_1(state, x_bind, bound, unbound)
+
 
 @Predication(vocabulary, names=["_card_n_1"])
 def _card_n_1(state, x_bind):
@@ -273,10 +287,8 @@ def _card_n_1(state, x_bind):
     yield from combinatorial_style_predication_1(state, x_bind, bound, unbound)
 
 
-
 @Predication(vocabulary, names=["unknown"])
 def unknown(state, e_binding, x_binding):
-
     if state.sys["responseState"] == "way_to_pay":
         if x_binding.value[0] in ["cash", "card"]:
             yield state.record_operations([RespondOperation("Ah. Perfect! Have a great rest of your day.")])
@@ -289,37 +301,47 @@ def unknown(state, e_binding, x_binding):
         else:
             yield state.record_operations([RespondOperation("Sorry, we don't have that")])
     else:
-        yield state.record_operations([RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")])
+        yield state.record_operations(
+            [RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")])
+
+
 @Predication(vocabulary, names=["unknown"])
 def unknown_eu(state, e_binding, u_binding):
     yield state
+
 
 @Predication(vocabulary, names=["_yes_a_1", "_yup_a_1"])
 def _yes_a_1(state, i_binding, h_binding):
     if state.sys["responseState"] == "anything_else":
         yield state.record_operations([RespondOperation("What else?"), ResponseStateOp("anticipate_dish")])
     else:
-        yield state.record_operations([RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")])
+        yield state.record_operations(
+            [RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")])
 
-@Predication(vocabulary, names=["_no_a_1","_nope_a_1"])
+
+@Predication(vocabulary, names=["_no_a_1", "_nope_a_1"])
 def _no_a_1(state, i_binding, h_binding):
     if state.sys["responseState"] == "anything_else":
         items = [i for (x, i) in state.rel["ordered"]]
         item_str = ""
-        if len(items) == 1 :
-            item_str = "a "+ items[0]
+        if len(items) == 1:
+            item_str = "a " + items[0]
         if len(items) == 2:
             item_str = "a " + items[0] + " and a " + items[1]
         if len(items) == 3:
             item_str = "a " + items[0] + ", a " + items[1] + ", and a " + items[2]
 
-        yield state.record_operations([RespondOperation("Ok, I'll be right back with your meal.\nA few minutes go by and the robot returns with " + item_str + ".\nThe food is good, but nothing extraordinary."), ResponseStateOp("done_ordering")])
+        yield state.record_operations([RespondOperation(
+            "Ok, I'll be right back with your meal.\nA few minutes go by and the robot returns with " + item_str + ".\nThe food is good, but nothing extraordinary."),
+            ResponseStateOp("done_ordering")])
     else:
-        yield state.record_operations([RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")])
+        yield state.record_operations(
+            [RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")])
 
 
 def handles_noun(noun_lemma):
-    return noun_lemma in ["special", "food", "menu", "soup", "salad", "table", "thing", "steak", "meat", "bill", "check"]
+    return noun_lemma in ["special", "food", "menu", "soup", "salad", "table", "thing", "steak", "meat", "bill",
+                          "check"]
 
 
 # Simple example of using match_all that doesn't do anything except
@@ -351,9 +373,9 @@ def on_p_loc(state, e_introduced_binding, x_actor_binding, x_location_binding):
             if (item1, item2) in state.rel["on"]:
                 return True
             else:
-                report_error(["notOn",item1,item2])
+                report_error(["notOn", item1, item2])
         else:
-            report_error(["notOn",item1,item2])
+            report_error(["notOn", item1, item2])
 
     def all_item1_on_item2(item2):
         if "on" in state.rel.keys():
@@ -399,13 +421,15 @@ def _want_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
                 if i[0] == x_actor_binding:
                     yield i[1]
 
-    for success_state in in_style_predication_2(state, x_actor_binding, x_object_binding, criteria_bound,
-                                                wanters_of_obj, wanted_of_actor):
+    success_states = list(in_style_predication_2(state, x_actor_binding, x_object_binding, criteria_bound,
+                                                 wanters_of_obj, wanted_of_actor))
+    for success_state in success_states:
         x_act = success_state.get_binding(x_actor_binding.variable.name).value[0]
         x_obj = success_state.get_binding(x_object_binding.variable.name).value[0]
         if x_act == "user":
             if not x_obj is None:
                 yield success_state.record_operations(user_wants(state, x_obj))
+
 
 @Predication(vocabulary, names=["_check_v_1"])
 def _check_v_1(state, e_introduced_binding, x_actor_binding, i_object_binding):
@@ -420,7 +444,7 @@ def _check_v_1(state, e_introduced_binding, x_actor_binding, i_object_binding):
             yield None
 
     for success_state in combinatorial_style_predication_1(state, x_actor_binding, criteria_bound, unbound):
-            yield success_state.record_operations(user_wants(state, "bill1"))
+        yield success_state.record_operations(user_wants(state, "bill1"))
 
 
 @Predication(vocabulary, names=["_give_v_1", "_get_v_1"])
@@ -430,6 +454,7 @@ def _give_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding, x_
             if not state.get_binding(x_object_binding.variable.name).value[0] is None:
                 yield state.record_operations(
                     user_wants(state, state.get_binding(x_object_binding.variable.name).value[0]))
+
 
 @Predication(vocabulary, names=["_show_v_1"])
 def _show_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding, x_target_binding):
@@ -529,6 +554,7 @@ def _would_v_modal(state, e_introduced_binding, h_binding):
 def _please_a_1(state, e_introduced_binding, e_binding):
     yield state
 
+
 @Predication(vocabulary, names=["_please_v_1"])
 def _please_v_1(state, e_introduced_binding, i_binding1, i_binding2):
     yield state
@@ -543,19 +569,23 @@ def _could_v_modal(state, e_introduced_binding, h_binding):
 def polite(state, c_arg, i_binding, e_binding):
     yield state
 
+
 @Predication(vocabulary, names=["_thanks_a_1"])
 def _thanks_a_1(state, i_binding, h_binding):
-    yield from call(state,h_binding)
+    yield from call(state, h_binding)
+
 
 class RequestVerb:
     def __init__(self, pred_name_list, lemma, logic):
         self.pred_name_list = pred_name_list
         self.lemma = lemma
         self.logic = logic
+
     def pred_func(self, state, e_bind, x_act, x_obj):
         def bound(x_actor_binding, x_object_binding):
             j = state.get_binding("tree").value[0]["Index"]
-            is_cond = find_predication_from_introduced(state.get_binding("tree").value[0]["Tree"], j).name in ["_could_v_modal", "_can_v_modal"]
+            is_cond = find_predication_from_introduced(state.get_binding("tree").value[0]["Tree"], j).name in [
+                "_could_v_modal", "_can_v_modal"]
             is_fut = (state.get_binding("tree").value[0]["Variables"][j]["TENSE"] == "fut")
             if is_cond or is_fut:
                 return True
@@ -563,10 +593,14 @@ class RequestVerb:
                 if self.lemma in state.rel.keys():
                     if (x_actor_binding, x_object_binding) in state.rel[self.lemma]:
                         return True
+                    else:
+                        report_error(["verbDoesntApply", x_actor_binding, self.lemma, x_object_binding])
+                        return False
 
                 else:
-                    report_error(["verbDoesntApply", self.lemma, x_actor_binding.variable.name])
+                    report_error(["verbDoesntApply", x_actor_binding, self.lemma, x_object_binding])
                     return False
+
         def x_obj_unbound(x_object_binding):
             if self.lemma in state.rel.keys():
                 for i in state.rel[self.lemma]:
@@ -579,9 +613,11 @@ class RequestVerb:
                     if i[0] == x_actor_binding:
                         yield i[1]
 
-        for success_state in in_style_predication_2(state, x_act, x_obj, bound,
+        success_states = list(in_style_predication_2(state, x_act, x_obj, bound,
                                                     x_obj_unbound,
-                                                    x_act_unbound):
+                                                    x_act_unbound))
+        #if success_states
+        for success_state in success_states:
             x_actor = success_state.get_binding(x_act.variable.name).value[0]
             x_object = success_state.get_binding(x_obj.variable.name).value[0]
 
@@ -597,12 +633,15 @@ class RequestVerb:
             else:
                 yield success_state
 
-have = RequestVerb(["_have_v_1","_get_v_1","_take_v_1"],"have",user_wants)
+
+have = RequestVerb(["_have_v_1", "_get_v_1", "_take_v_1"], "have", user_wants)
 see = RequestVerb(["_see_v_1"], "see", user_wants_to_see)
+
 
 @Predication(vocabulary, names=have.pred_name_list)
 def _have_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
     yield from have.pred_func(state, e_introduced_binding, x_actor_binding, x_object_binding)
+
 
 @Predication(vocabulary, names=see.pred_name_list)
 def _see_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
@@ -669,6 +708,8 @@ def generate_custom_message(tree_info, error_term):
         arg1 = error_arguments[1]
         arg2 = error_arguments[2]
         return f"No. {arg1} is not on {arg2}"
+    if error_constant == "verbDoesntApply":
+        return f"No. {error_arguments[1]} does not {error_arguments[2]} {error_arguments[3]}"
     else:
         # No custom message, just return the raw error for debugging
         return str(error_term)
@@ -679,8 +720,8 @@ def reset():
     # initial_state = WorldState({}, ["pizza", "computer", "salad", "soup", "steak", "ham", "meat","special"])
     initial_state = WorldState({},
                                ["salad", "soup", "soup1", "special", "salad1", "table", "table1", "menu", "menu1",
-                                    "pizza", "pizza1", "steak", "steak1", "meat", "bill", "bill1", "check"],
-                               {"prices": {"salad1": 3, "steak1": 10, "soup1": 4}, "responseState" : "default"
+                                "pizza", "pizza1", "steak", "steak1", "meat", "bill", "bill1", "check"],
+                               {"prices": {"salad1": 3, "steak1": 10, "soup1": 4}, "responseState": "default"
 
                                 })
 
@@ -704,7 +745,7 @@ def reset():
     initial_state = initial_state.add_rel("computer", "have", "salad1")
     initial_state = initial_state.add_rel("computer", "have", "soup1")
     initial_state = initial_state.add_rel("computer", "have", "steak1")
-    initial_state = initial_state.add_rel("user","have","bill1")
+    initial_state = initial_state.add_rel("user", "have", "bill1")
 
     initial_state = initial_state.add_rel("steak1", "on", "menu1")
 
@@ -720,7 +761,7 @@ def reset():
 
 
 def hello_world():
-    user_interface = UserInterface(reset, vocabulary,message_function=generate_custom_message)
+    user_interface = UserInterface(reset, vocabulary, message_function=generate_custom_message)
 
     while True:
         user_interface.interact_once()
