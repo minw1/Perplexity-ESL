@@ -579,8 +579,8 @@ class RequestVerb:
         for success_state in in_style_predication_2(state, x_act, x_obj, bound,
                                                     x_obj_unbound,
                                                     x_act_unbound):
-            x_act = success_state.get_binding(x_act.variable.name).value[0]
-            x_obj = success_state.get_binding(x_obj.variable.name).value[0]
+            x_actor = success_state.get_binding(x_act.variable.name).value[0]
+            x_object = success_state.get_binding(x_obj.variable.name).value[0]
 
             j = state.get_binding("tree").value[0]["Index"]
             is_cond = find_predication_from_introduced(state.get_binding("tree").value[0]["Tree"],
@@ -588,9 +588,9 @@ class RequestVerb:
             is_fut = (state.get_binding("tree").value[0]["Variables"][j]["TENSE"] == "fut")
 
             if is_cond or is_fut:
-                if x_act == "user":
-                    if not x_obj is None:
-                        yield success_state.record_operations(self.logic(state, x_obj))
+                if x_actor == "user":
+                    if not x_object is None:
+                        yield success_state.record_operations(self.logic(state, x_object))
             else:
                 yield success_state
 
