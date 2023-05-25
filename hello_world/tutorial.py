@@ -187,7 +187,7 @@ def user_wants(state, wanted):
         if i == wanted:
             if "at" in state.rel.keys():
                 if ("user", "table") in state.rel["at"]:
-                    return [RespondOperation("Um... You're at a table. Can I get you something else?")]
+                    return [RespondOperation("Um... You're at a table. Can I get you something else?"), ResponseStateOp("anything_else")]
             return [AddRelOp(("user", "at", "table")),
                     RespondOperation(
                         "Robot: Right this way!\nThe robot shows you to a wooden table\nRobot: I hope you have a lovely dining experience with us today. Make sure to ask your waiter for the specials!\nA minute passes \nRobot Waiter: Hello! How can I help you?")]
@@ -209,6 +209,14 @@ def user_wants(state, wanted):
 
     return [RespondOperation("Sorry, I can't get that for you at the moment.")]
 
+def user_wants_to_see(state, wanted):
+    prompt_finish_order = "\nCan I get you anything else before I put your order in?" if state.sys["responseState"] in ["anything_else", "anticipate_dish"] else ""
+    if wanted == "menu1":
+        return [RespondOperation("Here's the menu...\n...menu goes here..." + prompt_finish_order)]
+    elif wanted == "table1":
+        return [RespondOperation("All our tables are nice... trust me on this one"+ prompt_finish_order)]
+    else:
+        return [RespondOperation("Sorry, I can't show you that."+ prompt_finish_order)]
 
 @Predication(vocabulary, names=["pron"])
 def pron(state, x_who_binding):
@@ -523,54 +531,66 @@ def polite(state, c_arg, i_binding, e_binding):
 def _thanks_a_1(state, i_binding, h_binding):
     yield from call(state,h_binding)
 
-@Predication(vocabulary, names=["_have_v_1","_get_v_1"])
-def _have_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
-    def criteria_bound(x_actor_binding, x_object_binding):
-        j = state.get_binding("tree").value[0]["Index"]
-        is_cond = find_predication_from_introduced(state.get_binding("tree").value[0]["Tree"], j).name in [
-            "_could_v_modal", "_can_v_modal"]
-        is_fut = (state.get_binding("tree").value[0]["Variables"][j]["TENSE"] == "fut")
-        if (is_cond or is_fut):
-            return True
-        else:
-            if "have" in state.rel.keys():
-                if (x_actor_binding, x_object_binding) in state.rel["have"]:
-                    return True
-
+class RequestVerb:
+    def __init__(self, pred_name_list, lemma, logic):
+        self.pred_name_list = pred_name_list
+        self.lemma = lemma
+        self.logic = logic
+    def pred_func(self, state, e_bind, x_act, x_obj):
+        def bound(x_actor_binding, x_object_binding):
+            j = state.get_binding("tree").value[0]["Index"]
+            is_cond = find_predication_from_introduced(state.get_binding("tree").value[0]["Tree"], j).name in ["_could_v_modal", "_can_v_modal"]
+            is_fut = (state.get_binding("tree").value[0]["Variables"][j]["TENSE"] == "fut")
+            if is_cond or is_fut:
+                return True
             else:
-                report_error(["verbDoesntApply", "large", x_actor_binding.variable.name])
-                return False
+                if self.lemma in state.rel.keys():
+                    if (x_actor_binding, x_object_binding) in state.rel[self.lemma]:
+                        return True
 
-    def havers_of_obj(x_object_binding):
-        if "have" in state.rel.keys():
-            for i in state.rel["have"]:
-                if i[1] == x_object_binding:
-                    yield i[0]
+                else:
+                    report_error(["verbDoesntApply", self.lemma, x_actor_binding.variable.name])
+                    return False
+        def x_obj_unbound(x_object_binding):
+            if self.lemma in state.rel.keys():
+                for i in state.rel[self.lemma]:
+                    if i[1] == x_object_binding:
+                        yield i[0]
 
-    def had_of_actor(x_actor_binding):
-        if "have" in state.rel.keys():
-            for i in state.rel["have"]:
-                if i[0] == x_actor_binding:
-                    yield i[1]
+        def x_act_unbound(x_actor_binding):
+            if self.lemma in state.rel.keys():
+                for i in state.rel[self.lemma]:
+                    if i[0] == x_actor_binding:
+                        yield i[1]
 
-    for success_state in in_style_predication_2(state, x_actor_binding, x_object_binding, criteria_bound, havers_of_obj,
-                                                had_of_actor):
-        x_act = success_state.get_binding(x_actor_binding.variable.name).value[0]
-        x_obj = success_state.get_binding(x_object_binding.variable.name).value[0]
+        for success_state in in_style_predication_2(state, x_act, x_obj, bound,
+                                                    x_obj_unbound,
+                                                    x_act_unbound):
+            x_act = success_state.get_binding(x_act.variable.name).value[0]
+            x_obj = success_state.get_binding(x_obj.variable.name).value[0]
 
-        j = state.get_binding("tree").value[0]["Index"]
-        is_cond = find_predication_from_introduced(state.get_binding("tree").value[0]["Tree"],
-                                                   j).name in ["_could_v_modal", "_can_v_modal"]
-        is_fut = (state.get_binding("tree").value[0]["Variables"][j]["TENSE"] == "fut")
+            j = state.get_binding("tree").value[0]["Index"]
+            is_cond = find_predication_from_introduced(state.get_binding("tree").value[0]["Tree"],
+                                                       j).name in ["_could_v_modal", "_can_v_modal"]
+            is_fut = (state.get_binding("tree").value[0]["Variables"][j]["TENSE"] == "fut")
 
-        if is_cond or is_fut:
-            if x_act == "user":
-                if not x_obj is None:
-                    yield success_state.record_operations(user_wants(state, x_obj))
-        else:
-            yield success_state
+            if is_cond or is_fut:
+                if x_act == "user":
+                    if not x_obj is None:
+                        yield success_state.record_operations(self.logic(state, x_obj))
+            else:
+                yield success_state
 
+have = RequestVerb(["_have_v_1","_get_v_1"],"have",user_wants)
+see = RequestVerb(["_see_v_1"], "see", user_wants_to_see)
 
+@Predication(vocabulary, names=have.pred_name_list)
+def _have_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
+    yield from have.pred_func(state, e_introduced_binding, x_actor_binding, x_object_binding)
+
+@Predication(vocabulary, names=see.pred_name_list)
+def _see_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
+    yield from see.pred_func(state, e_introduced_binding, x_actor_binding, x_object_binding)
 
 
 @Predication(vocabulary, names=["poss"])
