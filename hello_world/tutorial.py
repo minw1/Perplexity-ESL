@@ -14,6 +14,7 @@ from perplexity.vocabulary import Vocabulary, Predication, EventOption
 from perplexity.tree import find_predication_from_introduced
 from collections import deque
 import perplexity.messages
+import json
 
 vocabulary = system_vocabulary()
 
@@ -256,13 +257,29 @@ def pron(state, x_who_binding):
 @Predication(vocabulary, names=["generic_entity"])
 def generic_entity(state, x_who_binding):
     def bound(val):
-        return val in state.ent
+        #return val in state.ent
+        return True
 
     def unbound():
-        for i in state.ent:
-            yield i
+        #for i in state.ent:
+        #    yield i
+        yield "generic_entity"
 
     yield from combinatorial_style_predication_1(state, x_who_binding, bound, unbound)
+
+@Predication(vocabulary, names=["much-many_a"], handles=[("relevant_var", EventOption.optional)])
+def much_many_a(state, e_binding, x_binding):
+    if "relevant_var" in e_binding.value.keys():
+        yield state.set_x(x_binding.variable.name, (json.dumps({"relevant_var_name":e_binding.value["relevant_var"], "relevant_var_value":"to_determine", "structure":"price_type"}),))
+
+
+@Predication(vocabulary, names=["measure"])
+def measure(state, e_binding, e_binding2, x_binding):
+    yield state.add_to_e(e_binding2.variable.name, "relevant_var", x_binding.variable.name)
+@Predication(vocabulary, names=["abstr_deg"])
+def abstr_deg(state, x_binding):
+    yield state.set_x(x_binding.variable.name, ("abstract_degree",))
+
 
 
 @Predication(vocabulary, names=["_cash_n_1"])
@@ -310,7 +327,7 @@ def unknown_eu(state, e_binding, u_binding):
     yield state
 
 
-@Predication(vocabulary, names=["_yes_a_1", "_yup_a_1"])
+@Predication(vocabulary, names=["_yes_a_1", "_yup_a_1","_sure_a_1"])
 def _yes_a_1(state, i_binding, h_binding):
     if state.sys["responseState"] == "anything_else":
         yield state.record_operations([RespondOperation("What else?"), ResponseStateOp("anticipate_dish")])
@@ -655,19 +672,39 @@ def poss(state, e_introduced_binding, x_object_binding, x_actor_binding):
 
 @Predication(vocabulary, names=["_be_v_id"])
 def _be_v_id(state, e_introduced_binding, x_actor_binding, x_object_binding):
-    def criteria_bound(x_actor_binding, x_object_binding):
-        first_in_second = x_actor_binding in all_instances_and_spec(state, x_object_binding)
-        second_in_first = x_object_binding in all_instances_and_spec(state, x_actor_binding)
+    def criteria_bound(x_actor, x_object):
+        if not x_object[0] == "{":
+            first_in_second = x_actor in all_instances_and_spec(state, x_object)
+            second_in_first = x_object in all_instances_and_spec(state, x_actor)
 
-        return first_in_second or second_in_first
+            return first_in_second or second_in_first
+        else:
+            x_object = json.loads(x_object)
+            if x_object["structure"] == "price_type":
+                if type(x_object["relevant_var_value"]) is int:
+                    if not (x_actor, x_object["relevant_var_value"]) in state.sys["prices"]:
+                        report_error("WrongPrice")
+                        return False
+            return True
 
-    def unbound(x_object_binding):
-        for i in all_instances(state, x_object_binding):
+    def unbound(x_object):
+        for i in all_instances(state, x_object):
             yield i
-        yield x_object_binding
+        yield x_object
 
-    yield from in_style_predication_2(state, x_actor_binding, x_object_binding, criteria_bound, unbound,
-                                      unbound)
+    for success_state in in_style_predication_2(state, x_actor_binding, x_object_binding, criteria_bound, unbound,
+                                      unbound):
+        x_object = success_state.get_binding(x_object_binding.variable.name).value[0]
+        x_actor = success_state.get_binding(x_actor_binding.variable.name).value[0]
+        if not x_object[0] == "{":
+            yield success_state
+        else:
+            x_object = json.loads(x_object)
+            if x_object["structure"] == "price_type":
+                if x_object["relevant_var_value"] == "to_determine":
+                    if x_actor in success_state.sys["prices"].keys():
+                        yield success_state.set_x(x_object["relevant_var_name"], (str(x_actor) + ": " + str(success_state.sys["prices"][x_actor]) + " dollars",))
+
 
 
 @Predication(vocabulary, names=["_be_v_there"])
@@ -745,7 +782,6 @@ def reset():
     initial_state = initial_state.add_rel("computer", "have", "salad1")
     initial_state = initial_state.add_rel("computer", "have", "soup1")
     initial_state = initial_state.add_rel("computer", "have", "steak1")
-    initial_state = initial_state.add_rel("user", "have", "bill1")
 
     initial_state = initial_state.add_rel("steak1", "on", "menu1")
 
