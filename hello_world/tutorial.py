@@ -20,15 +20,14 @@ vocabulary = system_vocabulary()
 
 
 class WorldState(State):
-    def __init__(self, relations, entities, system):
+    def __init__(self, relations, system):
         super().__init__([])
         self.rel = relations
-        self.ent = entities
         self.sys = system
 
     def all_individuals(self):
-        for i in self.ent:
-            return i
+        for i in self.get_entities():
+            yield i
 
     def add_rel(self, first, relname, second):
         newrel = copy.deepcopy(self.rel)
@@ -36,7 +35,7 @@ class WorldState(State):
             newrel[relname] = [(first, second)]
         else:
             newrel[relname] += [(first, second)]
-        return WorldState(newrel, self.ent, self.sys)
+        return WorldState(newrel, self.sys)
 
     def mutate_add_rel(self, first, relname, second):
         newrel = copy.deepcopy(self.rel)
@@ -50,6 +49,7 @@ class WorldState(State):
         newrel = copy.deepcopy(self.rel)
         newrel.pop(keyname, None)
         self.rel = newrel
+
     def mutate_add_bill(self, addition):
         newrel = copy.deepcopy(self.rel)
         for i in range(len(newrel["valueOf"])):
@@ -59,6 +59,14 @@ class WorldState(State):
 
     def mutate_set_response_state(self, newState):
         self.sys["responseState"] = newState
+
+    def get_entities(self):
+        entities = set()
+        for i in self.rel.keys():
+            for j in self.rel[i]:
+                entities.add(j[0])
+                entities.add(j[1])
+        return entities
 
 
 def sort_of(state, thing, possible_type):
@@ -167,7 +175,7 @@ class ResponseStateOp(object):
 
 
 def user_wants(state, wanted):
-    if not wanted in state.ent:
+    if not wanted in state.get_entities():
         return [RespondOperation("Sorry, we don't have that.")]
 
     for i in all_instances_and_spec(state, "food"):
@@ -309,7 +317,7 @@ def unknown(state, e_binding, x_binding):
             yield state.record_operations(
                 [RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")])
     elif state.sys["responseState"] in ["anticipate_dish", "anything_else"]:
-        if x_binding.value[0] in state.ent:
+        if x_binding.value[0] in state.get_entities():
             yield state.record_operations(user_wants(state, x_binding.value[0]))
         else:
             yield state.record_operations([RespondOperation("Sorry, we don't have that")])
@@ -477,6 +485,7 @@ def _show_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding, x_
                 if state.get_binding(x_object_binding.variable.name).value[0] == "menu1":
                     yield state.record_operations(
                         user_wants_to_see(state, state.get_binding(x_object_binding.variable.name).value[0]))
+
 
 @Predication(vocabulary, names=["_seat_v_cause"])
 def _seat_v_cause(state, e_introduced_binding, x_actor_binding, x_object_binding):
@@ -707,10 +716,10 @@ def _be_v_id(state, e_introduced_binding, x_actor_binding, x_object_binding):
 @Predication(vocabulary, names=["_be_v_there"])
 def _be_v_there(state, e_introduced_binding, x_object_binding):
     def bound_variable(value):
-        yield value in state.ent
+        yield value in state.get_entities()
 
     def unbound_variable():
-        for i in state.ent:
+        for i in state.get_entities():
             yield i
 
     yield from combinatorial_style_predication_1(state, x_object_binding, bound_variable, unbound_variable)
@@ -753,10 +762,7 @@ def reset():
     # return State([])
     # initial_state = WorldState({}, ["pizza", "computer", "salad", "soup", "steak", "ham", "meat","special"])
     initial_state = WorldState({},
-                               ["salad", "soup", "soup1", "special", "salad1", "table", "table1", "menu", "menu1",
-                                "pizza", "pizza1", "steak", "steak1", "meat", "bill", "bill1", "check"],
                                {"prices": {"salad1": 3, "steak1": 10, "soup1": 4}, "responseState": "default"
-
                                 })
 
     initial_state = initial_state.add_rel("special", "specializes", "food")
@@ -779,6 +785,7 @@ def reset():
     initial_state = initial_state.add_rel("computer", "have", "salad1")
     initial_state = initial_state.add_rel("computer", "have", "soup1")
     initial_state = initial_state.add_rel("computer", "have", "steak1")
+    initial_state = initial_state.add_rel("computer", "have", "table1")
 
     initial_state = initial_state.add_rel("steak1", "on", "menu1")
 
