@@ -38,7 +38,7 @@ class WorldState(State):
             newrel[relname] += [(first, second)]
         return WorldState(newrel, self.ent, self.sys)
 
-    def _mutate_add_rel(self, first, relname, second):
+    def mutate_add_rel(self, first, relname, second):
         newrel = copy.deepcopy(self.rel)
         if not relname in newrel:
             newrel[relname] = [(first, second)]
@@ -46,26 +46,18 @@ class WorldState(State):
             newrel[relname] += [(first, second)]
         self.rel = newrel
 
-    def _mutate_reset_rel(self, keyname):
+    def mutate_reset_rel(self, keyname):
         newrel = copy.deepcopy(self.rel)
         newrel.pop(keyname, None)
         self.rel = newrel
-
-    def _mutate_set_bill(self, newval):
-        newrel = copy.deepcopy(self.rel)
-        for i in range(len(newrel["valueOf"])):
-            if newrel["valueOf"][i][1] == "bill1":
-                newrel["valueOf"][i][0] = (newval, "bill1")
-        self.rel = newrel
-
-    def _mutate_add_bill(self, addition):
+    def mutate_add_bill(self, addition):
         newrel = copy.deepcopy(self.rel)
         for i in range(len(newrel["valueOf"])):
             if newrel["valueOf"][i][1] == "bill1":
                 newrel["valueOf"][i] = (addition + newrel["valueOf"][i][0], "bill1")
         self.rel = newrel
 
-    def _mutate_set_response_state(self, newState):
+    def mutate_set_response_state(self, newState):
         self.sys["responseState"] = newState
 
 
@@ -153,7 +145,7 @@ class AddRelOp(object):
         self.toAdd = rel
 
     def apply_to(self, state):
-        state._mutate_add_rel(self.toAdd[0], self.toAdd[1], self.toAdd[2])
+        state.mutate_add_rel(self.toAdd[0], self.toAdd[1], self.toAdd[2])
 
 
 class AddBillOp(object):
@@ -163,7 +155,7 @@ class AddBillOp(object):
     def apply_to(self, state):
         prices = state.sys["prices"]
         assert (self.toAdd in prices)
-        state._mutate_add_bill(prices[self.toAdd])
+        state.mutate_add_bill(prices[self.toAdd])
 
 
 class ResponseStateOp(object):
@@ -171,7 +163,7 @@ class ResponseStateOp(object):
         self.toAdd = item
 
     def apply_to(self, state):
-        state._mutate_set_response_state(self.toAdd)
+        state.mutate_set_response_state(self.toAdd)
 
 
 def user_wants(state, wanted):
@@ -484,7 +476,12 @@ def _show_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding, x_
             if not state.get_binding(x_object_binding.variable.name).value[0] is None:
                 if state.get_binding(x_object_binding.variable.name).value[0] == "menu1":
                     yield state.record_operations(
-                        user_wants(state, state.get_binding(x_object_binding.variable.name).value[0]))
+                        user_wants_to_see(state, state.get_binding(x_object_binding.variable.name).value[0]))
+
+@Predication(vocabulary, names=["_seat_v_cause"])
+def _seat_v_cause(state, e_introduced_binding, x_actor_binding, x_object_binding):
+    if state.get_binding(x_object_binding.variable.name).value[0] == "user":
+        yield state.record_operations(user_wants(state, "table1"))
 
 
 @Predication(vocabulary, names=["loc_nonsp"])
@@ -608,7 +605,7 @@ class RequestVerb:
             is_modal = find_predication_from_introduced(state.get_binding("tree").value[0]["Tree"], j).name in [
                 "_could_v_modal", "_can_v_modal"]
             is_future = (state.get_binding("tree").value[0]["Variables"][j]["TENSE"] == "fut")
-            if is_modal or is_future:
+            if (is_modal or is_future) and x_actor == "user":
                 return True
             else:
                 if self.lemma in state.rel.keys():
@@ -622,20 +619,20 @@ class RequestVerb:
                     report_error(["verbDoesntApply", x_actor, self.lemma, x_object])
                     return False
 
-        def x_obj_unbound(x_object):
+        def actor_from_object(x_object):
             if self.lemma in state.rel.keys():
                 for i in state.rel[self.lemma]:
                     if i[1] == x_object:
                         yield i[0]
 
-        def x_act_unbound(x_actor):
+        def object_from_actor(x_actor):
             if self.lemma in state.rel.keys():
                 for i in state.rel[self.lemma]:
                     if i[0] == x_actor:
                         yield i[1]
 
-        for success_state in in_style_predication_2(state, x_actor_binding, x_object_binding, bound, x_obj_unbound,
-                                                    x_act_unbound):
+        for success_state in in_style_predication_2(state, x_actor_binding, x_object_binding, bound, actor_from_object,
+                                                    object_from_actor):
             x_act = success_state.get_binding(x_actor_binding.variable.name).value[0]
             x_obj = success_state.get_binding(x_object_binding.variable.name).value[0]
 
@@ -645,9 +642,8 @@ class RequestVerb:
             is_fut = (state.get_binding("tree").value[0]["Variables"][j]["TENSE"] == "fut")
 
             if is_cond or is_fut:
-                if x_act == "user":
-                    if x_obj is not None:
-                        yield success_state.record_operations(self.logic(state, x_obj))
+                if x_obj is not None:
+                    yield success_state.record_operations(self.logic(state, x_obj))
             else:
                 yield success_state
 
