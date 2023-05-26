@@ -255,31 +255,35 @@ def pron(state, x_who_binding):
 
 
 @Predication(vocabulary, names=["generic_entity"])
-def generic_entity(state, x_who_binding):
+def generic_entity(state, x_binding):
     def bound(val):
-        #return val in state.ent
+        # return val in state.ent
         return True
 
     def unbound():
-        #for i in state.ent:
+        # for i in state.ent:
         #    yield i
         yield "generic_entity"
 
-    yield from combinatorial_style_predication_1(state, x_who_binding, bound, unbound)
+    yield from combinatorial_style_predication_1(state, x_binding, bound, unbound)
+
 
 @Predication(vocabulary, names=["much-many_a"], handles=[("relevant_var", EventOption.optional)])
 def much_many_a(state, e_binding, x_binding):
     if "relevant_var" in e_binding.value.keys():
-        yield state.set_x(x_binding.variable.name, (json.dumps({"relevant_var_name":e_binding.value["relevant_var"], "relevant_var_value":"to_determine", "structure":"price_type"}),))
+        yield state.set_x(x_binding.variable.name, (json.dumps(
+            {"relevant_var_name": e_binding.value["relevant_var"], "relevant_var_value": "to_determine",
+             "structure": "price_type"}),))
 
 
 @Predication(vocabulary, names=["measure"])
 def measure(state, e_binding, e_binding2, x_binding):
     yield state.add_to_e(e_binding2.variable.name, "relevant_var", x_binding.variable.name)
+
+
 @Predication(vocabulary, names=["abstr_deg"])
 def abstr_deg(state, x_binding):
     yield state.set_x(x_binding.variable.name, ("abstract_degree",))
-
 
 
 @Predication(vocabulary, names=["_cash_n_1"])
@@ -327,7 +331,7 @@ def unknown_eu(state, e_binding, u_binding):
     yield state
 
 
-@Predication(vocabulary, names=["_yes_a_1", "_yup_a_1","_sure_a_1"])
+@Predication(vocabulary, names=["_yes_a_1", "_yup_a_1", "_sure_a_1"])
 def _yes_a_1(state, i_binding, h_binding):
     if state.sys["responseState"] == "anything_else":
         yield state.record_operations([RespondOperation("What else?"), ResponseStateOp("anticipate_dish")])
@@ -416,26 +420,26 @@ def on_p_loc(state, e_introduced_binding, x_actor_binding, x_location_binding):
 
 @Predication(vocabulary, names=["_want_v_1"])
 def _want_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
-    def criteria_bound(x_actor_binding, x_object_binding):
+    def criteria_bound(x_actor, x_object):
         if "want" in state.rel.keys():
-            if (x_actor_binding, x_object_binding) in state.rel["want"]:
+            if (x_actor, x_object) in state.rel["want"]:
                 return True
-        elif x_actor_binding == "user":
+        elif x_actor == "user":
             return True
         else:
-            report_error(["verbDoesntApply", "want", x_actor_binding.variable.name])
+            report_error(["verbDoesntApply", "want", x_actor.variable.name])
             return False
 
-    def wanters_of_obj(x_object_binding):
+    def wanters_of_obj(x_object):
         if "want" in state.rel.keys():
             for i in state.rel["want"]:
-                if i[1] == x_object_binding:
+                if i[1] == x_object:
                     yield i[0]
 
-    def wanted_of_actor(x_actor_binding):
+    def wanted_of_actor(x_actor):
         if "want" in state.rel.keys():
             for i in state.rel["want"]:
-                if i[0] == x_actor_binding:
+                if i[0] == x_actor:
                     yield i[1]
 
     success_states = list(in_style_predication_2(state, x_actor_binding, x_object_binding, criteria_bound,
@@ -593,50 +597,47 @@ def _thanks_a_1(state, i_binding, h_binding):
 
 
 class RequestVerb:
-    def __init__(self, pred_name_list, lemma, logic):
-        self.pred_name_list = pred_name_list
+    def __init__(self, predicate_name_list, lemma, logic):
+        self.predicate_name_list = predicate_name_list
         self.lemma = lemma
         self.logic = logic
 
-    def pred_func(self, state, e_bind, x_act, x_obj):
-        def bound(x_actor_binding, x_object_binding):
+    def predicate_func(self, state, e_bind, x_actor_binding, x_object_binding):
+        def bound(x_actor, x_object):
             j = state.get_binding("tree").value[0]["Index"]
-            is_cond = find_predication_from_introduced(state.get_binding("tree").value[0]["Tree"], j).name in [
+            is_modal = find_predication_from_introduced(state.get_binding("tree").value[0]["Tree"], j).name in [
                 "_could_v_modal", "_can_v_modal"]
-            is_fut = (state.get_binding("tree").value[0]["Variables"][j]["TENSE"] == "fut")
-            if is_cond or is_fut:
+            is_future = (state.get_binding("tree").value[0]["Variables"][j]["TENSE"] == "fut")
+            if is_modal or is_future:
                 return True
             else:
                 if self.lemma in state.rel.keys():
-                    if (x_actor_binding, x_object_binding) in state.rel[self.lemma]:
+                    if (x_actor, x_object) in state.rel[self.lemma]:
                         return True
                     else:
-                        report_error(["verbDoesntApply", x_actor_binding, self.lemma, x_object_binding])
+                        report_error(["verbDoesntApply", x_actor, self.lemma, x_object])
                         return False
 
                 else:
-                    report_error(["verbDoesntApply", x_actor_binding, self.lemma, x_object_binding])
+                    report_error(["verbDoesntApply", x_actor, self.lemma, x_object])
                     return False
 
-        def x_obj_unbound(x_object_binding):
+        def x_obj_unbound(x_object):
             if self.lemma in state.rel.keys():
                 for i in state.rel[self.lemma]:
-                    if i[1] == x_object_binding:
+                    if i[1] == x_object:
                         yield i[0]
 
-        def x_act_unbound(x_actor_binding):
+        def x_act_unbound(x_actor):
             if self.lemma in state.rel.keys():
                 for i in state.rel[self.lemma]:
-                    if i[0] == x_actor_binding:
+                    if i[0] == x_actor:
                         yield i[1]
 
-        success_states = list(in_style_predication_2(state, x_act, x_obj, bound,
-                                                    x_obj_unbound,
-                                                    x_act_unbound))
-        #if success_states
-        for success_state in success_states:
-            x_actor = success_state.get_binding(x_act.variable.name).value[0]
-            x_object = success_state.get_binding(x_obj.variable.name).value[0]
+        for success_state in in_style_predication_2(state, x_actor_binding, x_object_binding, bound, x_obj_unbound,
+                                                    x_act_unbound):
+            x_act = success_state.get_binding(x_actor_binding.variable.name).value[0]
+            x_obj = success_state.get_binding(x_object_binding.variable.name).value[0]
 
             j = state.get_binding("tree").value[0]["Index"]
             is_cond = find_predication_from_introduced(state.get_binding("tree").value[0]["Tree"],
@@ -644,9 +645,9 @@ class RequestVerb:
             is_fut = (state.get_binding("tree").value[0]["Variables"][j]["TENSE"] == "fut")
 
             if is_cond or is_fut:
-                if x_actor == "user":
-                    if not x_object is None:
-                        yield success_state.record_operations(self.logic(state, x_object))
+                if x_act == "user":
+                    if x_obj is not None:
+                        yield success_state.record_operations(self.logic(state, x_obj))
             else:
                 yield success_state
 
@@ -655,14 +656,14 @@ have = RequestVerb(["_have_v_1", "_get_v_1", "_take_v_1"], "have", user_wants)
 see = RequestVerb(["_see_v_1"], "see", user_wants_to_see)
 
 
-@Predication(vocabulary, names=have.pred_name_list)
+@Predication(vocabulary, names=have.predicate_name_list)
 def _have_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
-    yield from have.pred_func(state, e_introduced_binding, x_actor_binding, x_object_binding)
+    yield from have.predicate_func(state, e_introduced_binding, x_actor_binding, x_object_binding)
 
 
-@Predication(vocabulary, names=see.pred_name_list)
+@Predication(vocabulary, names=see.predicate_name_list)
 def _see_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
-    yield from see.pred_func(state, e_introduced_binding, x_actor_binding, x_object_binding)
+    yield from see.predicate_func(state, e_introduced_binding, x_actor_binding, x_object_binding)
 
 
 @Predication(vocabulary, names=["poss"])
@@ -693,18 +694,18 @@ def _be_v_id(state, e_introduced_binding, x_actor_binding, x_object_binding):
         yield x_object
 
     for success_state in in_style_predication_2(state, x_actor_binding, x_object_binding, criteria_bound, unbound,
-                                      unbound):
-        x_object = success_state.get_binding(x_object_binding.variable.name).value[0]
-        x_actor = success_state.get_binding(x_actor_binding.variable.name).value[0]
-        if not x_object[0] == "{":
+                                                unbound):
+        x_obj = success_state.get_binding(x_object_binding.variable.name).value[0]
+        x_act = success_state.get_binding(x_actor_binding.variable.name).value[0]
+        if not x_obj[0] == "{":
             yield success_state
         else:
-            x_object = json.loads(x_object)
-            if x_object["structure"] == "price_type":
-                if x_object["relevant_var_value"] == "to_determine":
-                    if x_actor in success_state.sys["prices"].keys():
-                        yield success_state.set_x(x_object["relevant_var_name"], (str(x_actor) + ": " + str(success_state.sys["prices"][x_actor]) + " dollars",))
-
+            x_obj = json.loads(x_obj)
+            if x_obj["structure"] == "price_type":
+                if x_obj["relevant_var_value"] == "to_determine":
+                    if x_act in success_state.sys["prices"].keys():
+                        yield success_state.set_x(x_obj["relevant_var_name"], (
+                            str(x_act) + ": " + str(success_state.sys["prices"][x_act]) + " dollars",))
 
 
 @Predication(vocabulary, names=["_be_v_there"])
