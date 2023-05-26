@@ -1,20 +1,18 @@
 import copy
+import json
 
+import perplexity.messages
 from perplexity.execution import report_error, call, execution_context
 from perplexity.generation import english_for_delphin_variable
 from perplexity.plurals import VariableCriteria
-from perplexity.predications import combinatorial_style_predication_1, in_style_predication_2, lift_style_predication_2, \
-    quantifier_raw
+from perplexity.predications import combinatorial_style_predication_1, in_style_predication_2, quantifier_raw
 from perplexity.response import RespondOperation
 from perplexity.state import State
 from perplexity.system_vocabulary import system_vocabulary
+from perplexity.tree import find_predication_from_introduced
 from perplexity.user_interface import UserInterface
 from perplexity.utilities import ShowLogging
-from perplexity.vocabulary import Vocabulary, Predication, EventOption
-from perplexity.tree import find_predication_from_introduced
-from collections import deque
-import perplexity.messages
-import json
+from perplexity.vocabulary import Predication, EventOption
 
 vocabulary = system_vocabulary()
 
@@ -29,36 +27,36 @@ class WorldState(State):
         for i in self.get_entities():
             yield i
 
-    def add_rel(self, first, relname, second):
-        newrel = copy.deepcopy(self.rel)
-        if not relname in newrel:
-            newrel[relname] = [(first, second)]
+    def add_rel(self, first, relation_name, second):
+        new_relation = copy.deepcopy(self.rel)
+        if relation_name not in new_relation:
+            new_relation[relation_name] = [(first, second)]
         else:
-            newrel[relname] += [(first, second)]
-        return WorldState(newrel, self.sys)
+            new_relation[relation_name] += [(first, second)]
+        return WorldState(new_relation, self.sys)
 
-    def mutate_add_rel(self, first, relname, second):
-        newrel = copy.deepcopy(self.rel)
-        if not relname in newrel:
-            newrel[relname] = [(first, second)]
+    def mutate_add_rel(self, first, relation_name, second):
+        new_relation = copy.deepcopy(self.rel)
+        if relation_name not in new_relation:
+            new_relation[relation_name] = [(first, second)]
         else:
-            newrel[relname] += [(first, second)]
-        self.rel = newrel
+            new_relation[relation_name] += [(first, second)]
+        self.rel = new_relation
 
     def mutate_reset_rel(self, keyname):
-        newrel = copy.deepcopy(self.rel)
-        newrel.pop(keyname, None)
-        self.rel = newrel
+        new_relation = copy.deepcopy(self.rel)
+        new_relation.pop(keyname, None)
+        self.rel = new_relation
 
     def mutate_add_bill(self, addition):
-        newrel = copy.deepcopy(self.rel)
-        for i in range(len(newrel["valueOf"])):
-            if newrel["valueOf"][i][1] == "bill1":
-                newrel["valueOf"][i] = (addition + newrel["valueOf"][i][0], "bill1")
-        self.rel = newrel
+        new_relation = copy.deepcopy(self.rel)
+        for i in range(len(new_relation["valueOf"])):
+            if new_relation["valueOf"][i][1] == "bill1":
+                new_relation["valueOf"][i] = (addition + new_relation["valueOf"][i][0], "bill1")
+        self.rel = new_relation
 
-    def mutate_set_response_state(self, newState):
-        self.sys["responseState"] = newState
+    def mutate_set_response_state(self, new_state):
+        self.sys["responseState"] = new_state
 
     def get_entities(self):
         entities = set()
@@ -67,7 +65,11 @@ class WorldState(State):
                 entities.add(j[0])
                 entities.add(j[1])
         return entities
-
+    def handle_world_event(self, args):
+        if(args[0] == "user_want"):
+            pass # call some user_wants function, passing args into it
+        elif(args[0] == "user_wants_to_see"):
+            pass # call some user_wants_to_see function, passing args into it
 
 def sort_of(state, thing, possible_type):
     if thing == possible_type:
@@ -175,7 +177,7 @@ class ResponseStateOp(object):
 
 
 def user_wants(state, wanted):
-    if not wanted in state.get_entities():
+    if wanted not in state.get_entities():
         return [RespondOperation("Sorry, we don't have that.")]
 
     for i in all_instances_and_spec(state, "food"):
@@ -711,6 +713,8 @@ def _be_v_id(state, e_introduced_binding, x_actor_binding, x_object_binding):
                     if x_act in success_state.sys["prices"].keys():
                         yield success_state.set_x(x_obj["relevant_var_name"], (
                             str(x_act) + ": " + str(success_state.sys["prices"][x_act]) + " dollars",))
+                    else:
+                        yield success_state.record_operations([RespondOperation("Haha, it's not for sale.")])
 
 
 @Predication(vocabulary, names=["_be_v_there"])
