@@ -165,10 +165,7 @@ class WorldState(State):
 
     def handle_world_event(self, args):
         if args[0] == "user_wants":
-            if not args[1] == "computer":
-                return self.user_wants(args[1])
-            else:
-                return []
+            return self.user_wants(args[1])
         elif args[0] == "user_wants_to_see":
             return self.user_wants_to_see(args[1])
         elif args[0] == "no":
@@ -177,6 +174,8 @@ class WorldState(State):
             return self.yes()
         elif args[0] == "unknown":
             return self.unknown(args[1])
+        elif args[0] == "user_wants_to_sit":
+            return self.user_wants("table1")
 
 
 def sort_of(state, thing, possible_type):
@@ -629,7 +628,7 @@ def _thanks_a_1(state, i_binding, h_binding):
     yield from call(state, h_binding)
 
 
-class RequestVerb:
+class RequestVerbTransitive:
     def __init__(self, predicate_name_list, lemma, logic):
         self.predicate_name_list = predicate_name_list
         self.lemma = lemma
@@ -680,8 +679,51 @@ class RequestVerb:
                 yield success_state
 
 
-have = RequestVerb(["_have_v_1", "_get_v_1", "_take_v_1"], "have", "user_wants")
-see = RequestVerb(["_see_v_1"], "see", "user_wants_to_see")
+class RequestVerbIntransitive:
+    def __init__(self, predicate_name_list, lemma, logic):
+        self.predicate_name_list = predicate_name_list
+        self.lemma = lemma
+        self.logic = logic
+
+    def predicate_func(self, state, e_binding, x_actor_binding):
+        j = state.get_binding("tree").value[0]["Index"]
+        is_modal = find_predication_from_introduced(state.get_binding("tree").value[0]["Tree"], j).name in [
+            "_could_v_modal", "_can_v_modal", "_would_v_modal"]
+        is_future = (state.get_binding("tree").value[0]["Variables"][j]["TENSE"] == "fut")
+
+        def bound(x_actor):
+            if (is_modal or is_future) and x_actor == "user":
+                return True
+            else:
+                if self.lemma in state.rel.keys():
+                    for pair in state.rel[self.lemma]:
+                        if pair[0] == x_actor:
+                            return True
+
+                    report_error(["verbDoesntApply", x_actor, self.lemma, x_object])
+                    return False
+
+                else:
+                    report_error(["verbDoesntApply", x_actor, self.lemma, x_object])
+                    return False
+
+        def unbound():
+            if self.lemma in state.rel.keys():
+                for i in state.rel[self.lemma]:
+                    yield i[0]
+
+        for success_state in combinatorial_style_predication_1(state, x_actor_binding, bound, unbound):
+            x_act = success_state.get_binding(x_actor_binding.variable.name).value[0]
+
+            if is_modal or is_future:
+                yield success_state.record_operations(success_state.handle_world_event([self.logic, x_act]))
+            else:
+                yield success_state
+
+
+have = RequestVerbTransitive(["_have_v_1", "_get_v_1", "_take_v_1"], "have", "user_wants")
+see = RequestVerbTransitive(["_see_v_1"], "see", "user_wants_to_see")
+sit_down = RequestVerbIntransitive(["_sit_v_down"], "sitting_down", "user_wants_to_sit")
 
 
 @Predication(vocabulary, names=have.predicate_name_list)
@@ -692,6 +734,11 @@ def _have_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
 @Predication(vocabulary, names=see.predicate_name_list)
 def _see_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
     yield from see.predicate_func(state, e_introduced_binding, x_actor_binding, x_object_binding)
+
+@Predication(vocabulary, names=sit_down.predicate_name_list)
+def _sit_v_down(state, e_introduced_binding, x_actor_binding):
+    yield from sit_down.predicate_func(state, e_introduced_binding, x_actor_binding)
+
 
 
 @Predication(vocabulary, names=["poss"])
