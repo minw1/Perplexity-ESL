@@ -149,7 +149,10 @@ class WorldState(State):
 
     def handle_world_event(self, args):
         if args[0] == "user_wants":
-            return self.user_wants(args[1])
+            if args[1] == "user":
+                return self.user_wants(args[1])
+            else:
+                return []
         elif args[0] == "user_wants_to_see":
             return self.user_wants_to_see(args[1])
         elif args[0] == "no":
@@ -585,6 +588,10 @@ def _like_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
             yield state.record_operations(
                 state.handle_world_event(["user_wants", state.get_binding(x_object_binding.variable.name).value[0]]))
 
+@Predication(vocabulary, names=["_like_v_1"])
+def _like_v_1_exh(state, e_introduced_binding, x_actor_binding, h_binding):
+    yield from call(state,h_binding)
+
 
 @Predication(vocabulary, names=["_would_v_modal"])
 def _would_v_modal(state, e_introduced_binding, h_binding):
@@ -624,8 +631,7 @@ class RequestVerb:
 
     def predicate_func(self, state, e_bind, x_actor_binding, x_object_binding):
         j = state.get_binding("tree").value[0]["Index"]
-        is_modal = find_predication_from_introduced(state.get_binding("tree").value[0]["Tree"],
-                                                    j).name in ["_could_v_modal", "_can_v_modal"]
+        is_modal = find_predication_from_introduced(state.get_binding("tree").value[0]["Tree"],j).name in ["_could_v_modal", "_can_v_modal","_would_v_modal"]
         is_future = (state.get_binding("tree").value[0]["Variables"][j]["TENSE"] == "fut")
 
         def bound(x_actor, x_object):
@@ -662,7 +668,7 @@ class RequestVerb:
 
             if is_modal or is_future:
                 if x_obj is not None:
-                    yield success_state.record_operations(success_state.handle_world_event([self.logic, x_obj]))
+                    yield success_state.record_operations(success_state.handle_world_event([self.logic, x_obj, x_act]))
             else:
                 yield success_state
 
@@ -798,6 +804,7 @@ def reset():
     initial_state = initial_state.add_rel("computer", "have", "soup1")
     initial_state = initial_state.add_rel("computer", "have", "steak1")
     initial_state = initial_state.add_rel("computer", "have", "table1")
+    initial_state = initial_state.add_rel("computer", "have", "menu1")
 
     initial_state = initial_state.add_rel("steak1", "on", "menu1")
 
