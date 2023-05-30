@@ -160,7 +160,7 @@ class WorldState(State):
 
     def unknown(self, x_binding):
         if self.sys["responseState"] == "way_to_pay":
-            if x_binding.value[0] in ["cash", "card"]:
+            if x_binding.value[0] in ["cash", "card", "card, credit"]:
                 return [RespondOperation("Ah. Perfect! Have a great rest of your day.")]
             else:
                 return [RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")]
@@ -372,6 +372,18 @@ def _card_n_1(state, x_bind):
     yield from combinatorial_style_predication_1(state, x_bind, bound, unbound)
 
 
+@Predication(vocabulary, names=["_credit_n_1"])
+def _credit_n_1(state, x_bind):
+    def bound(val):
+        return val == "credit"
+
+    def unbound():
+        yield "credit"
+
+    yield from combinatorial_style_predication_1(state, x_bind, bound, unbound)
+
+
+
 @Predication(vocabulary, names=["unknown"])
 def unknown(state, e_binding, x_binding):
     yield state.record_operations(state.handle_world_event(["unknown", x_binding]))
@@ -450,7 +462,7 @@ def on_p_loc(state, e_introduced_binding, x_actor_binding, x_location_binding):
                                       all_item2_containing_item1)
 
 
-@Predication(vocabulary, names=["_want_v_1"])
+@Predication(vocabulary, names=["_want_v_1"], handles=[("request_type", EventOption.optional)])
 def _want_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
     def criteria_bound(x_actor, x_object):
         if "want" in state.rel.keys():
@@ -459,7 +471,7 @@ def _want_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
         elif x_actor == "user":
             return True
         else:
-            report_error(["verbDoesntApply", "want", x_actor.variable.name])
+            report_error(["notwant", "want", x_actor])
             return False
 
     def wanters_of_obj(x_object):
@@ -599,15 +611,17 @@ def def_implicit_q(state, x_variable_binding, h_rstr, h_body):
     yield from quantifier_raw(state, x_variable_binding, h_rstr, h_body)
 
 
-@Predication(vocabulary, names=["_like_v_1"])
+@Predication(vocabulary, names=["_like_v_1"], handles=[("request_type", EventOption.optional)])
 def _like_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
     if state.get_binding(x_actor_binding.variable.name).value[0] == "user":
         if not state.get_binding(x_object_binding.variable.name).value[0] is None:
             yield state.record_operations(
                 state.handle_world_event(["user_wants", state.get_binding(x_object_binding.variable.name).value[0]]))
+    else:
+        yield state
 
 
-@Predication(vocabulary, names=["_like_v_1", "_want_v_1"])
+@Predication(vocabulary, names=["_like_v_1", "_want_v_1"], handles=[("request_type", EventOption.optional)])
 def _like_v_1_exh(state, e_introduced_binding, x_actor_binding, h_binding):
     event_to_mod = h_binding.args[0]
 
@@ -695,7 +709,7 @@ class RequestVerbTransitive:
             x_act = success_state.get_binding(x_actor_binding.variable.name).value[0]
             x_obj = success_state.get_binding(x_object_binding.variable.name).value[0]
 
-            if (is_modal or is_future or is_request):
+            if (is_modal or is_future or is_request) and x_act == "user":
                 if x_obj is not None:
                     yield success_state.record_operations(success_state.handle_world_event([self.logic, x_obj, x_act]))
             else:
@@ -743,7 +757,7 @@ class RequestVerbIntransitive:
         for success_state in combinatorial_style_predication_1(state, x_actor_binding, bound, unbound):
             x_act = success_state.get_binding(x_actor_binding.variable.name).value[0]
 
-            if is_modal or is_future or is_request:
+            if (is_modal or is_future or is_request) and x_act == "user":
                 yield success_state.record_operations(success_state.handle_world_event([self.logic, x_act]))
             else:
                 yield success_state
@@ -888,6 +902,13 @@ def _be_v_there(state, e_introduced_binding, x_object_binding):
             yield i
 
     yield from combinatorial_style_predication_1(state, x_object_binding, bound_variable, unbound_variable)
+
+@Predication(vocabulary, names=["compound"])
+def compound(state, e_introduced_binding, x_first_binding, x_second_binding):
+    assert(x_first_binding is not None)
+    assert (x_second_binding is not None)
+    yield state.set_x(x_first_binding.variable.name, (state.get_binding(x_first_binding.variable.name).value[0] + ", " + state.get_binding(x_second_binding.variable.name).value[0],))
+
 
 
 # Generates all the responses that predications can
