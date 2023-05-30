@@ -759,6 +759,42 @@ def _be_v_id(state, e_introduced_binding, x_actor_binding, x_object_binding):
                     else:
                         yield success_state.record_operations([RespondOperation("Haha, it's not for sale.")])
 
+@Predication(vocabulary, names=["_cost_v_1"])
+def _cost_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
+    def criteria_bound(x_actor, x_object):
+        if not x_object[0] == "{":
+            report_error("Have not dealt with declarative cost")
+        else:
+            x_object = json.loads(x_object)
+            if x_object["structure"] == "price_type":
+                if type(x_object["relevant_var_value"]) is int:
+                    if not (x_actor, x_object["relevant_var_value"]) in state.sys["prices"]:
+                        report_error("WrongPrice")
+                        return False
+            return True
+    def get_actor(x_object):
+        if False:
+            yield None
+
+    def get_object(x_actor):
+        if False:
+            yield None
+
+    for success_state in in_style_predication_2(state, x_actor_binding, x_object_binding, criteria_bound, get_actor,
+                                                get_object):
+        x_obj = success_state.get_binding(x_object_binding.variable.name).value[0]
+        x_act = success_state.get_binding(x_actor_binding.variable.name).value[0]
+        if not x_obj[0] == "{":
+            yield success_state
+        else:
+            x_obj = json.loads(x_obj)
+            if x_obj["structure"] == "price_type":
+                if x_obj["relevant_var_value"] == "to_determine":
+                    if x_act in success_state.sys["prices"].keys():
+                        yield success_state.set_x(x_obj["relevant_var_name"], (
+                            str(x_act) + ": " + str(success_state.sys["prices"][x_act]) + " dollars",))
+                    else:
+                        yield success_state.record_operations([RespondOperation("Haha, it's not for sale.")])
 
 @Predication(vocabulary, names=["_be_v_there"])
 def _be_v_there(state, e_introduced_binding, x_object_binding):
