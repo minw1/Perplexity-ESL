@@ -777,8 +777,8 @@ def _cost_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
             yield None
 
     def get_object(x_actor):
-        if False:
-            yield None
+        if x_actor in state.sys["prices"].keys():
+            yield str(x_actor) + ": " + str(state.sys["prices"][x_actor]) + " dollars"
 
     for success_state in in_style_predication_2(state, x_actor_binding, x_object_binding, criteria_bound, get_actor,
                                                 get_object):
