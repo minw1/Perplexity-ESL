@@ -132,6 +132,7 @@ class WorldState(State):
         elif args[0] == "user_wants_to_see":
             return self.user_wants(args[1])
 
+
 def sort_of(state, thing, possible_type):
     if thing == possible_type:
         return True
@@ -235,6 +236,7 @@ class ResponseStateOp(object):
 
     def apply_to(self, state):
         state.mutate_set_response_state(self.toAdd)
+
 
 @Predication(vocabulary, names=["pron"])
 def pron(state, x_who_binding):
@@ -477,7 +479,9 @@ def _give_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding, x_
         if state.get_binding(x_target_binding.variable.name).value[0] == "user":
             if not state.get_binding(x_object_binding.variable.name).value[0] is None:
                 yield state.record_operations(
-                    state.handle_world_event(["user_wants", state.get_binding(x_object_binding.variable.name).value[0]]))
+                    state.handle_world_event(
+                        ["user_wants", state.get_binding(x_object_binding.variable.name).value[0]]))
+
 
 @Predication(vocabulary, names=["_show_v_1"])
 def _show_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding, x_target_binding):
@@ -486,7 +490,8 @@ def _show_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding, x_
             if not state.get_binding(x_object_binding.variable.name).value[0] is None:
                 if state.get_binding(x_object_binding.variable.name).value[0] == "menu1":
                     yield state.record_operations(
-                        user_wants_to_see(state, state.get_binding(x_object_binding.variable.name).value[0]))
+                        state.handle_world_event(
+                            ["user_wants_to_see", state.get_binding(x_object_binding.variable.name).value[0]]))
 
 
 @Predication(vocabulary, names=["_seat_v_cause"])
@@ -571,7 +576,8 @@ def def_implicit_q(state, x_variable_binding, h_rstr, h_body):
 def _like_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
     if state.get_binding(x_actor_binding.variable.name).value[0] == "user":
         if not state.get_binding(x_object_binding.variable.name).value[0] is None:
-            yield state.record_operations(state.handle_world_event(["user_wants", state.get_binding(x_object_binding.variable.name).value[0]]))
+            yield state.record_operations(
+                state.handle_world_event(["user_wants", state.get_binding(x_object_binding.variable.name).value[0]]))
 
 
 @Predication(vocabulary, names=["_would_v_modal"])
@@ -611,11 +617,12 @@ class RequestVerb:
         self.logic = logic
 
     def predicate_func(self, state, e_bind, x_actor_binding, x_object_binding):
+        j = state.get_binding("tree").value[0]["Index"]
+        is_modal = find_predication_from_introduced(state.get_binding("tree").value[0]["Tree"],
+                                                    j).name in ["_could_v_modal", "_can_v_modal"]
+        is_future = (state.get_binding("tree").value[0]["Variables"][j]["TENSE"] == "fut")
+
         def bound(x_actor, x_object):
-            j = state.get_binding("tree").value[0]["Index"]
-            is_modal = find_predication_from_introduced(state.get_binding("tree").value[0]["Tree"], j).name in [
-                "_could_v_modal", "_can_v_modal"]
-            is_future = (state.get_binding("tree").value[0]["Variables"][j]["TENSE"] == "fut")
             if (is_modal or is_future) and x_actor == "user":
                 return True
             else:
@@ -647,12 +654,7 @@ class RequestVerb:
             x_act = success_state.get_binding(x_actor_binding.variable.name).value[0]
             x_obj = success_state.get_binding(x_object_binding.variable.name).value[0]
 
-            j = state.get_binding("tree").value[0]["Index"]
-            is_cond = find_predication_from_introduced(state.get_binding("tree").value[0]["Tree"],
-                                                       j).name in ["_could_v_modal", "_can_v_modal"]
-            is_fut = (state.get_binding("tree").value[0]["Variables"][j]["TENSE"] == "fut")
-
-            if is_cond or is_fut:
+            if is_modal or is_future:
                 if x_obj is not None:
                     yield success_state.record_operations(success_state.handle_world_event([self.logic, x_obj]))
             else:
