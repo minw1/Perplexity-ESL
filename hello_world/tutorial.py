@@ -149,6 +149,20 @@ class WorldState(State):
         else:
             return [RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")]
 
+    def unknown(self, x_binding):
+        if self.sys["responseState"] == "way_to_pay":
+            if x_binding.value[0] in ["cash", "card"]:
+                return [RespondOperation("Ah. Perfect! Have a great rest of your day.")]
+            else:
+                return [RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")]
+        elif self.sys["responseState"] in ["anticipate_dish", "anything_else"]:
+            if x_binding.value[0] in self.get_entities():
+                return self.handle_world_event(["user_wants", x_binding.value[0]])
+            else:
+                return [RespondOperation("Sorry, we don't have that")]
+        else:
+            return [RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")]
+
     def handle_world_event(self, args):
         if args[0] == "user_wants":
             if not args[1] == "computer":
@@ -161,6 +175,8 @@ class WorldState(State):
             return self.no()
         elif args[0] == "yes":
             return self.yes()
+        elif args[0] == "unknown":
+            return self.unknown(args[1])
 
 
 def sort_of(state, thing, possible_type):
@@ -345,20 +361,7 @@ def _card_n_1(state, x_bind):
 
 @Predication(vocabulary, names=["unknown"])
 def unknown(state, e_binding, x_binding):
-    if state.sys["responseState"] == "way_to_pay":
-        if x_binding.value[0] in ["cash", "card"]:
-            yield state.record_operations([RespondOperation("Ah. Perfect! Have a great rest of your day.")])
-        else:
-            yield state.record_operations(
-                [RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")])
-    elif state.sys["responseState"] in ["anticipate_dish", "anything_else"]:
-        if x_binding.value[0] in state.get_entities():
-            yield state.record_operations(state.handle_world_event(["user_wants", x_binding.value[0]]))
-        else:
-            yield state.record_operations([RespondOperation("Sorry, we don't have that")])
-    else:
-        yield state.record_operations(
-            [RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")])
+    yield state.record_operations(state.handle_world_event(["unknown", x_binding]))
 
 
 @Predication(vocabulary, names=["unknown"])
@@ -718,7 +721,8 @@ def poss(state, e_introduced_binding, x_object_binding, x_actor_binding):
                 if i[0] == x_actor:
                     yield i[1]
 
-    yield from in_style_predication_2(state, x_actor_binding, x_object_binding, bound, actor_from_object, object_from_actor)
+    yield from in_style_predication_2(state, x_actor_binding, x_object_binding, bound, actor_from_object,
+                                      object_from_actor)
 
 
 @Predication(vocabulary, names=["_be_v_id"])
@@ -759,6 +763,7 @@ def _be_v_id(state, e_introduced_binding, x_actor_binding, x_object_binding):
                     else:
                         yield success_state.record_operations([RespondOperation("Haha, it's not for sale.")])
 
+
 @Predication(vocabulary, names=["_cost_v_1"])
 def _cost_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
     def criteria_bound(x_actor, x_object):
@@ -772,6 +777,7 @@ def _cost_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
                         report_error("WrongPrice")
                         return False
             return True
+
     def get_actor(x_object):
         if False:
             yield None
@@ -795,6 +801,7 @@ def _cost_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
                             str(x_act) + ": " + str(success_state.sys["prices"][x_act]) + " dollars",))
                     else:
                         yield success_state.record_operations([RespondOperation("Haha, it's not for sale.")])
+
 
 @Predication(vocabulary, names=["_be_v_there"])
 def _be_v_there(state, e_introduced_binding, x_object_binding):
