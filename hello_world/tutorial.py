@@ -65,11 +65,72 @@ class WorldState(State):
                 entities.add(j[0])
                 entities.add(j[1])
         return entities
+
+    def user_wants(self, wanted):
+        if wanted not in self.get_entities():
+            return [RespondOperation("Sorry, we don't have that.")]
+
+        for i in all_instances_and_spec(self, "food"):
+            if i == wanted:
+                if "at" in self.rel.keys():
+                    if ("user", "table") in self.rel["at"]:
+                        if "ordered" in self.rel.keys():
+                            if ("user", wanted) in self.rel["ordered"]:
+                                return [RespondOperation(
+                                    "Sorry, you got the last one of those. We don't have any more. Can I get you something else?"),
+                                    ResponseStateOp("anything_else")]
+
+                        return [RespondOperation("Excellent Choice! Can I get you anything else?"),
+                                AddRelOp(("user", "ordered", wanted)), AddBillOp(wanted),
+                                ResponseStateOp("anything_else")]
+                return [RespondOperation("Sorry, you must be seated to order")]
+
+        for i in all_instances_and_spec(self, "table"):
+            if i == wanted:
+                if "at" in self.rel.keys():
+                    if ("user", "table") in self.rel["at"]:
+                        return [RespondOperation("Um... You're at a table. Can I get you something else?"),
+                                ResponseStateOp("anything_else")]
+                return [AddRelOp(("user", "at", "table")),
+                        RespondOperation(
+                            "Robot: Right this way!\nThe robot shows you to a wooden table\nRobot: I hope you have a lovely dining experience with us today. Make sure to ask your waiter for the specials!\nA minute passes \nRobot Waiter: Hello! How can I help you?")]
+        for i in all_instances_and_spec(self, "menu"):
+            if i == wanted:
+                if "at" in self.rel.keys():
+                    if ("user", "table") in self.rel["at"]:
+                        return [RespondOperation("Here's the menu...\n...Steak -- $10...")]
+                return [RespondOperation("Sorry, you must be seated to order")]
+
+        if wanted == "bill1":
+            for i in self.rel["valueOf"]:
+                if i[1] == "bill1":
+                    total = i[0]
+                    if self.sys["responseState"] == "done_ordering":
+                        return [RespondOperation(
+                            "Your total is " + str(total) + " dollars. Would you like to pay by cash or card?"),
+                            ResponseStateOp("way_to_pay")]
+                    else:
+                        return [RespondOperation("But... you haven't got any food yet!")]
+
+        return [RespondOperation("Sorry, I can't get that for you at the moment.")]
+
+    def user_wants_to_see(self, wanted):
+        prompt_finish_order = "\nCan I get you anything else before I put your order in?" if self.sys[
+                                                                                                 "responseState"] in [
+                                                                                                 "anything_else",
+                                                                                                 "anticipate_dish"] else ""
+        if wanted == "menu1":
+            return [RespondOperation("Here's the menu...\n...Steak -- $10..." + prompt_finish_order)]
+        elif wanted == "table1":
+            return [RespondOperation("All our tables are nice. Trust me on this one" + prompt_finish_order)]
+        else:
+            return [RespondOperation("Sorry, I can't show you that." + prompt_finish_order)]
+
     def handle_world_event(self, args):
-        if(args[0] == "user_want"):
-            pass # call some user_wants function, passing args into it
-        elif(args[0] == "user_wants_to_see"):
-            pass # call some user_wants_to_see function, passing args into it
+        if args[0] == "user_wants":
+            return self.user_wants(args[1])
+        elif args[0] == "user_wants_to_see":
+            return self.user_wants(args[1])
 
 def sort_of(state, thing, possible_type):
     if thing == possible_type:
@@ -175,66 +236,6 @@ class ResponseStateOp(object):
     def apply_to(self, state):
         state.mutate_set_response_state(self.toAdd)
 
-
-def user_wants(state, wanted):
-    if wanted not in state.get_entities():
-        return [RespondOperation("Sorry, we don't have that.")]
-
-    for i in all_instances_and_spec(state, "food"):
-        if i == wanted:
-            if "at" in state.rel.keys():
-                if ("user", "table") in state.rel["at"]:
-                    if "ordered" in state.rel.keys():
-                        if ("user", wanted) in state.rel["ordered"]:
-                            return [RespondOperation(
-                                "Sorry, you got the last one of those. We don't have any more. Can I get you something else?"),
-                                ResponseStateOp("anything_else")]
-
-                    return [RespondOperation("Excellent Choice! Can I get you anything else?"),
-                            AddRelOp(("user", "ordered", wanted)), AddBillOp(wanted), ResponseStateOp("anything_else")]
-            return [RespondOperation("Sorry, you must be seated to order")]
-
-    for i in all_instances_and_spec(state, "table"):
-        if i == wanted:
-            if "at" in state.rel.keys():
-                if ("user", "table") in state.rel["at"]:
-                    return [RespondOperation("Um... You're at a table. Can I get you something else?"),
-                            ResponseStateOp("anything_else")]
-            return [AddRelOp(("user", "at", "table")),
-                    RespondOperation(
-                        "Robot: Right this way!\nThe robot shows you to a wooden table\nRobot: I hope you have a lovely dining experience with us today. Make sure to ask your waiter for the specials!\nA minute passes \nRobot Waiter: Hello! How can I help you?")]
-    for i in all_instances_and_spec(state, "menu"):
-        if i == wanted:
-            if "at" in state.rel.keys():
-                if ("user", "table") in state.rel["at"]:
-                    return [RespondOperation("Here's the menu...\n...Steak -- $10...")]
-            return [RespondOperation("Sorry, you must be seated to order")]
-
-    if wanted == "bill1":
-        for i in state.rel["valueOf"]:
-            if i[1] == "bill1":
-                total = i[0]
-                if state.sys["responseState"] == "done_ordering":
-                    return [RespondOperation(
-                        "Your total is " + str(total) + " dollars. Would you like to pay by cash or card?"),
-                        ResponseStateOp("way_to_pay")]
-                else:
-                    return [RespondOperation("But... you haven't got any food yet!")]
-
-    return [RespondOperation("Sorry, I can't get that for you at the moment.")]
-
-
-def user_wants_to_see(state, wanted):
-    prompt_finish_order = "\nCan I get you anything else before I put your order in?" if state.sys["responseState"] in [
-        "anything_else", "anticipate_dish"] else ""
-    if wanted == "menu1":
-        return [RespondOperation("Here's the menu...\n...Steak -- $10..." + prompt_finish_order)]
-    elif wanted == "table1":
-        return [RespondOperation("All our tables are nice. Trust me on this one" + prompt_finish_order)]
-    else:
-        return [RespondOperation("Sorry, I can't show you that." + prompt_finish_order)]
-
-
 @Predication(vocabulary, names=["pron"])
 def pron(state, x_who_binding):
     person = int(state.get_binding("tree").value[0]["Variables"][x_who_binding.variable.name]["PERS"])
@@ -320,7 +321,7 @@ def unknown(state, e_binding, x_binding):
                 [RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")])
     elif state.sys["responseState"] in ["anticipate_dish", "anything_else"]:
         if x_binding.value[0] in state.get_entities():
-            yield state.record_operations(user_wants(state, x_binding.value[0]))
+            yield state.record_operations(state.handle_world_event(["user_wants", x_binding.value[0]]))
         else:
             yield state.record_operations([RespondOperation("Sorry, we don't have that")])
     else:
@@ -451,7 +452,7 @@ def _want_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
         x_obj = success_state.get_binding(x_object_binding.variable.name).value[0]
         if x_act == "user":
             if not x_obj is None:
-                yield success_state.record_operations(user_wants(state, x_obj))
+                yield success_state.record_operations(state.handle_world_event(["user_wants", x_obj]))
 
 
 @Predication(vocabulary, names=["_check_v_1"])
@@ -467,7 +468,7 @@ def _check_v_1(state, e_introduced_binding, x_actor_binding, i_object_binding):
             yield None
 
     for success_state in combinatorial_style_predication_1(state, x_actor_binding, criteria_bound, unbound):
-        yield success_state.record_operations(user_wants(state, "bill1"))
+        yield success_state.record_operations(state.handle_world_event(["user_wants", "bill1"]))
 
 
 @Predication(vocabulary, names=["_give_v_1", "_get_v_1"])
@@ -476,8 +477,7 @@ def _give_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding, x_
         if state.get_binding(x_target_binding.variable.name).value[0] == "user":
             if not state.get_binding(x_object_binding.variable.name).value[0] is None:
                 yield state.record_operations(
-                    user_wants(state, state.get_binding(x_object_binding.variable.name).value[0]))
-
+                    state.handle_world_event(["user_wants", state.get_binding(x_object_binding.variable.name).value[0]]))
 
 @Predication(vocabulary, names=["_show_v_1"])
 def _show_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding, x_target_binding):
@@ -492,7 +492,7 @@ def _show_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding, x_
 @Predication(vocabulary, names=["_seat_v_cause"])
 def _seat_v_cause(state, e_introduced_binding, x_actor_binding, x_object_binding):
     if state.get_binding(x_object_binding.variable.name).value[0] == "user":
-        yield state.record_operations(user_wants(state, "table1"))
+        yield state.record_operations(state.handle_world_event(["user_wants", "table1"]))
 
 
 @Predication(vocabulary, names=["loc_nonsp"])
@@ -571,7 +571,7 @@ def def_implicit_q(state, x_variable_binding, h_rstr, h_body):
 def _like_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
     if state.get_binding(x_actor_binding.variable.name).value[0] == "user":
         if not state.get_binding(x_object_binding.variable.name).value[0] is None:
-            yield state.record_operations(user_wants(state, state.get_binding(x_object_binding.variable.name).value[0]))
+            yield state.record_operations(state.handle_world_event(["user_wants", state.get_binding(x_object_binding.variable.name).value[0]]))
 
 
 @Predication(vocabulary, names=["_would_v_modal"])
@@ -654,13 +654,13 @@ class RequestVerb:
 
             if is_cond or is_fut:
                 if x_obj is not None:
-                    yield success_state.record_operations(self.logic(state, x_obj))
+                    yield success_state.record_operations(success_state.handle_world_event([self.logic, x_obj]))
             else:
                 yield success_state
 
 
-have = RequestVerb(["_have_v_1", "_get_v_1", "_take_v_1"], "have", user_wants)
-see = RequestVerb(["_see_v_1"], "see", user_wants_to_see)
+have = RequestVerb(["_have_v_1", "_get_v_1", "_take_v_1"], "have", "user_wants")
+see = RequestVerb(["_see_v_1"], "see", "user_wants_to_see")
 
 
 @Predication(vocabulary, names=have.predicate_name_list)
