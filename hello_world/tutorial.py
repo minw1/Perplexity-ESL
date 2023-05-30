@@ -125,12 +125,38 @@ class WorldState(State):
             return [RespondOperation("All our tables are nice. Trust me on this one" + prompt_finish_order)]
         else:
             return [RespondOperation("Sorry, I can't show you that." + prompt_finish_order)]
+    def no(self):
+        if self.sys["responseState"] == "anything_else":
+            items = [i for (x, i) in self.rel["ordered"]]
+            item_str = ""
+            if len(items) == 1:
+                item_str = "a " + items[0]
+            if len(items) == 2:
+                item_str = "a " + items[0] + " and a " + items[1]
+            if len(items) == 3:
+                item_str = "a " + items[0] + ", a " + items[1] + ", and a " + items[2]
+
+            return [RespondOperation(
+                "Ok, I'll be right back with your meal.\nA few minutes go by and the robot returns with " + item_str + ".\nThe food is good, but nothing extraordinary."),
+                ResponseStateOp("done_ordering")]
+        else:
+            return [RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")]
+    def yes(self):
+        if self.sys["responseState"] == "anything_else":
+            return [RespondOperation("What else?"), ResponseStateOp("anticipate_dish")]
+        else:
+            return [RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")]
 
     def handle_world_event(self, args):
         if args[0] == "user_wants":
             return self.user_wants(args[1])
         elif args[0] == "user_wants_to_see":
-            return self.user_wants(args[1])
+            return self.user_wants_to_see(args[1])
+        elif args[0] == "no":
+            return self.no()
+        elif args[0] == "yes":
+            return self.yes()
+
 
 
 def sort_of(state, thing, possible_type):
@@ -338,31 +364,11 @@ def unknown_eu(state, e_binding, u_binding):
 
 @Predication(vocabulary, names=["_yes_a_1", "_yup_a_1", "_sure_a_1"])
 def _yes_a_1(state, i_binding, h_binding):
-    if state.sys["responseState"] == "anything_else":
-        yield state.record_operations([RespondOperation("What else?"), ResponseStateOp("anticipate_dish")])
-    else:
-        yield state.record_operations(
-            [RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")])
-
+    yield state.record_operations(state.handle_world_event(["yes"]))
 
 @Predication(vocabulary, names=["_no_a_1", "_nope_a_1"])
 def _no_a_1(state, i_binding, h_binding):
-    if state.sys["responseState"] == "anything_else":
-        items = [i for (x, i) in state.rel["ordered"]]
-        item_str = ""
-        if len(items) == 1:
-            item_str = "a " + items[0]
-        if len(items) == 2:
-            item_str = "a " + items[0] + " and a " + items[1]
-        if len(items) == 3:
-            item_str = "a " + items[0] + ", a " + items[1] + ", and a " + items[2]
-
-        yield state.record_operations([RespondOperation(
-            "Ok, I'll be right back with your meal.\nA few minutes go by and the robot returns with " + item_str + ".\nThe food is good, but nothing extraordinary."),
-            ResponseStateOp("done_ordering")])
-    else:
-        yield state.record_operations(
-            [RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")])
+    yield state.record_operations(state.handle_world_event(["no"]))
 
 
 def handles_noun(noun_lemma):
