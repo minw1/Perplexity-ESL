@@ -125,6 +125,7 @@ class WorldState(State):
             return [RespondOperation("All our tables are nice. Trust me on this one" + prompt_finish_order)]
         else:
             return [RespondOperation("Sorry, I can't show you that." + prompt_finish_order)]
+
     def no(self):
         if self.sys["responseState"] == "anything_else":
             items = [i for (x, i) in self.rel["ordered"]]
@@ -141,6 +142,7 @@ class WorldState(State):
                 ResponseStateOp("done_ordering")]
         else:
             return [RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")]
+
     def yes(self):
         if self.sys["responseState"] == "anything_else":
             return [RespondOperation("What else?"), ResponseStateOp("anticipate_dish")]
@@ -149,7 +151,7 @@ class WorldState(State):
 
     def handle_world_event(self, args):
         if args[0] == "user_wants":
-            if args[1] == "user":
+            if not args[1] == "computer":
                 return self.user_wants(args[1])
             else:
                 return []
@@ -159,7 +161,6 @@ class WorldState(State):
             return self.no()
         elif args[0] == "yes":
             return self.yes()
-
 
 
 def sort_of(state, thing, possible_type):
@@ -368,6 +369,7 @@ def unknown_eu(state, e_binding, u_binding):
 @Predication(vocabulary, names=["_yes_a_1", "_yup_a_1", "_sure_a_1"])
 def _yes_a_1(state, i_binding, h_binding):
     yield state.record_operations(state.handle_world_event(["yes"]))
+
 
 @Predication(vocabulary, names=["_no_a_1", "_nope_a_1"])
 def _no_a_1(state, i_binding, h_binding):
@@ -588,9 +590,10 @@ def _like_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
             yield state.record_operations(
                 state.handle_world_event(["user_wants", state.get_binding(x_object_binding.variable.name).value[0]]))
 
+
 @Predication(vocabulary, names=["_like_v_1"])
 def _like_v_1_exh(state, e_introduced_binding, x_actor_binding, h_binding):
-    yield from call(state,h_binding)
+    yield from call(state, h_binding)
 
 
 @Predication(vocabulary, names=["_would_v_modal"])
@@ -631,7 +634,8 @@ class RequestVerb:
 
     def predicate_func(self, state, e_bind, x_actor_binding, x_object_binding):
         j = state.get_binding("tree").value[0]["Index"]
-        is_modal = find_predication_from_introduced(state.get_binding("tree").value[0]["Tree"],j).name in ["_could_v_modal", "_can_v_modal","_would_v_modal"]
+        is_modal = find_predication_from_introduced(state.get_binding("tree").value[0]["Tree"], j).name in [
+            "_could_v_modal", "_can_v_modal", "_would_v_modal"]
         is_future = (state.get_binding("tree").value[0]["Variables"][j]["TENSE"] == "fut")
 
         def bound(x_actor, x_object):
@@ -689,7 +693,32 @@ def _see_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
 
 @Predication(vocabulary, names=["poss"])
 def poss(state, e_introduced_binding, x_object_binding, x_actor_binding):
-    yield from _have_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding)
+    def bound(x_actor, x_object):
+
+        if "have" in state.rel.keys():
+            if (x_actor, x_object) in state.rel["have"]:
+                return True
+            else:
+                report_error(["verbDoesntApply", x_actor, "have", x_object])
+                return False
+
+        else:
+            report_error(["verbDoesntApply", x_actor, "have", x_object])
+            return False
+
+    def actor_from_object(x_object):
+        if "have" in state.rel.keys():
+            for i in state.rel["have"]:
+                if i[1] == x_object:
+                    yield i[0]
+
+    def object_from_actor(x_actor):
+        if "have" in state.rel.keys():
+            for i in state.rel["have"]:
+                if i[0] == x_actor:
+                    yield i[1]
+
+    yield from in_style_predication_2(state, x_actor_binding, x_object_binding, bound, actor_from_object, object_from_actor)
 
 
 @Predication(vocabulary, names=["_be_v_id"])
