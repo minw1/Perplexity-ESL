@@ -129,6 +129,11 @@ class WorldState(State):
     def no(self):
         if self.sys["responseState"] == "anything_else":
             items = [i for (x, i) in self.rel["ordered"]]
+            for i in self.rel["have"]:
+                if i[0] == "user":
+                    if i[1] in items:
+                        items.remove(i[1])
+
             item_str = ""
             if len(items) == 1:
                 item_str = "a " + items[0]
@@ -136,16 +141,20 @@ class WorldState(State):
                 item_str = "a " + items[0] + " and a " + items[1]
             if len(items) == 3:
                 item_str = "a " + items[0] + ", a " + items[1] + ", and a " + items[2]
+            for i in items:
+                self.add_rel("user","have",i)
 
             return [RespondOperation(
                 "Ok, I'll be right back with your meal.\nA few minutes go by and the robot returns with " + item_str + ".\nThe food is good, but nothing extraordinary."),
                 ResponseStateOp("done_ordering")]
+        elif self.sys["responseState"] == "initial":
+            return [RespondOperation("Ok, Goodbye")]
         else:
             return [RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")]
 
     def yes(self):
-        if self.sys["responseState"] == "anything_else":
-            return [RespondOperation("What else?"), ResponseStateOp("anticipate_dish")]
+        if self.sys["responseState"] in ["anything_else","initial"]:
+            return [RespondOperation("Ok, what?"), ResponseStateOp("anticipate_dish")]
         else:
             return [RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")]
 
@@ -155,7 +164,7 @@ class WorldState(State):
                 return [RespondOperation("Ah. Perfect! Have a great rest of your day.")]
             else:
                 return [RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")]
-        elif self.sys["responseState"] in ["anticipate_dish", "anything_else"]:
+        elif self.sys["responseState"] in ["anticipate_dish", "anything_else", "initial"]:
             if x_binding.value[0] in self.get_entities():
                 return self.handle_world_event(["user_wants", x_binding.value[0]])
             else:
@@ -316,6 +325,11 @@ def generic_entity(state, x_binding):
         yield "generic_entity"
 
     yield from combinatorial_style_predication_1(state, x_binding, bound, unbound)
+
+@Predication(vocabulary, names=["_okay_a_1"])
+def _okay_a_1(state, i_binding, h_binding):
+    yield from call(state, h_binding)
+
 
 
 @Predication(vocabulary, names=["much-many_a"], handles=[("relevant_var", EventOption.optional)])
@@ -913,7 +927,7 @@ def reset():
     # return State([])
     # initial_state = WorldState({}, ["pizza", "computer", "salad", "soup", "steak", "ham", "meat","special"])
     initial_state = WorldState({},
-                               {"prices": {"salad1": 3, "steak1": 10, "soup1": 4}, "responseState": "default"
+                               {"prices": {"salad1": 3, "steak1": 10, "soup1": 4}, "responseState": "initial"
                                 })
 
     initial_state = initial_state.add_rel("special", "specializes", "food")
@@ -938,6 +952,7 @@ def reset():
     initial_state = initial_state.add_rel("computer", "have", "steak1")
     initial_state = initial_state.add_rel("computer", "have", "table1")
     initial_state = initial_state.add_rel("computer", "have", "menu1")
+    initial_state = initial_state.add_rel("user", "have", "bill1")
 
     initial_state = initial_state.add_rel("steak1", "on", "menu1")
 
@@ -961,5 +976,6 @@ def hello_world():
 
 
 if __name__ == '__main__':
+    print("Welcome to my Restaurant. Can I get you something?")
     ShowLogging("Pipeline")
     hello_world()
