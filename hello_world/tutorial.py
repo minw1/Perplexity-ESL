@@ -639,7 +639,12 @@ class RequestVerbTransitive:
     def predicate_func(self, state, e_binding, x_actor_binding, x_object_binding):
 
         j = state.get_binding("tree").value[0]["Index"]
-        is_request = e_binding.value["request_type"]
+        is_request = False
+        if not e_binding is None:
+            if e_binding.value is not None:
+                if "request_type" in e_binding.value:
+                    is_request = e_binding.value["request_type"]
+
         is_modal = find_predication_from_introduced(state.get_binding("tree").value[0]["Tree"], j).name in [
             "_could_v_modal", "_can_v_modal", "_would_v_modal"]
         is_future = (state.get_binding("tree").value[0]["Variables"][j]["TENSE"] == "fut")
@@ -691,7 +696,11 @@ class RequestVerbIntransitive:
 
     def predicate_func(self, state, e_binding, x_actor_binding):
         j = state.get_binding("tree").value[0]["Index"]
-        is_request = e_binding.value["request_type"]
+        is_request = False
+        if not e_binding is None:
+            if e_binding.value is not None:
+                if "request_type" in e_binding.value:
+                    is_request = e_binding.value["request_type"]
         is_modal = find_predication_from_introduced(state.get_binding("tree").value[0]["Tree"], j).name in [
             "_could_v_modal", "_can_v_modal", "_would_v_modal"]
         is_future = (state.get_binding("tree").value[0]["Variables"][j]["TENSE"] == "fut")
