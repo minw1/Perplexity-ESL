@@ -593,9 +593,11 @@ def _like_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
                 state.handle_world_event(["user_wants", state.get_binding(x_object_binding.variable.name).value[0]]))
 
 
-@Predication(vocabulary, names=["_like_v_1"])
+@Predication(vocabulary, names=["_like_v_1", "_want_v_1"])
 def _like_v_1_exh(state, e_introduced_binding, x_actor_binding, h_binding):
-    yield from call(state, h_binding)
+    event_to_mod = h_binding.args[0]
+
+    yield from call(state.add_to_e(event_to_mod,"request_type",True), h_binding)
 
 
 @Predication(vocabulary, names=["_would_v_modal"])
@@ -634,14 +636,16 @@ class RequestVerbTransitive:
         self.lemma = lemma
         self.logic = logic
 
-    def predicate_func(self, state, e_bind, x_actor_binding, x_object_binding):
+    def predicate_func(self, state, e_binding, x_actor_binding, x_object_binding):
+
         j = state.get_binding("tree").value[0]["Index"]
+        is_request = e_binding.value["request_type"]
         is_modal = find_predication_from_introduced(state.get_binding("tree").value[0]["Tree"], j).name in [
             "_could_v_modal", "_can_v_modal", "_would_v_modal"]
         is_future = (state.get_binding("tree").value[0]["Variables"][j]["TENSE"] == "fut")
 
         def bound(x_actor, x_object):
-            if (is_modal or is_future) and x_actor == "user":
+            if (is_modal or is_future or is_request) and x_actor == "user":
                 return True
             else:
                 if self.lemma in state.rel.keys():
@@ -672,7 +676,7 @@ class RequestVerbTransitive:
             x_act = success_state.get_binding(x_actor_binding.variable.name).value[0]
             x_obj = success_state.get_binding(x_object_binding.variable.name).value[0]
 
-            if is_modal or is_future:
+            if (is_modal or is_future or is_request):
                 if x_obj is not None:
                     yield success_state.record_operations(success_state.handle_world_event([self.logic, x_obj, x_act]))
             else:
@@ -687,12 +691,13 @@ class RequestVerbIntransitive:
 
     def predicate_func(self, state, e_binding, x_actor_binding):
         j = state.get_binding("tree").value[0]["Index"]
+        is_request = e_binding.value["request_type"]
         is_modal = find_predication_from_introduced(state.get_binding("tree").value[0]["Tree"], j).name in [
             "_could_v_modal", "_can_v_modal", "_would_v_modal"]
         is_future = (state.get_binding("tree").value[0]["Variables"][j]["TENSE"] == "fut")
 
         def bound(x_actor):
-            if (is_modal or is_future) and x_actor == "user":
+            if (is_modal or is_future or is_request) and x_actor == "user":
                 return True
             else:
                 if self.lemma in state.rel.keys():
@@ -715,7 +720,7 @@ class RequestVerbIntransitive:
         for success_state in combinatorial_style_predication_1(state, x_actor_binding, bound, unbound):
             x_act = success_state.get_binding(x_actor_binding.variable.name).value[0]
 
-            if is_modal or is_future:
+            if is_modal or is_future or is_request:
                 yield success_state.record_operations(success_state.handle_world_event([self.logic, x_act]))
             else:
                 yield success_state
@@ -726,16 +731,16 @@ see = RequestVerbTransitive(["_see_v_1"], "see", "user_wants_to_see")
 sit_down = RequestVerbIntransitive(["_sit_v_down"], "sitting_down", "user_wants_to_sit")
 
 
-@Predication(vocabulary, names=have.predicate_name_list)
+@Predication(vocabulary, names=have.predicate_name_list, handles=[("request_type", EventOption.optional)])
 def _have_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
     yield from have.predicate_func(state, e_introduced_binding, x_actor_binding, x_object_binding)
 
 
-@Predication(vocabulary, names=see.predicate_name_list)
+@Predication(vocabulary, names=see.predicate_name_list, handles=[("request_type", EventOption.optional)])
 def _see_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
     yield from see.predicate_func(state, e_introduced_binding, x_actor_binding, x_object_binding)
 
-@Predication(vocabulary, names=sit_down.predicate_name_list)
+@Predication(vocabulary, names=sit_down.predicate_name_list, handles=[("request_type", EventOption.optional)])
 def _sit_v_down(state, e_introduced_binding, x_actor_binding):
     yield from sit_down.predicate_func(state, e_introduced_binding, x_actor_binding)
 
