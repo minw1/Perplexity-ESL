@@ -5,7 +5,8 @@ import perplexity.messages
 from perplexity.execution import report_error, call, execution_context
 from perplexity.generation import english_for_delphin_variable
 from perplexity.plurals import VariableCriteria
-from perplexity.predications import combinatorial_style_predication_1, in_style_predication_2, quantifier_raw
+from perplexity.predications import combinatorial_style_predication_1, in_style_predication_2, quantifier_raw, \
+    lift_style_predication_2
 from perplexity.response import RespondOperation
 from perplexity.set_utilities import Measurement
 from perplexity.state import State
@@ -13,7 +14,7 @@ from perplexity.system_vocabulary import system_vocabulary
 from perplexity.tree import find_predication_from_introduced
 from perplexity.user_interface import UserInterface
 from perplexity.utilities import ShowLogging
-from perplexity.vocabulary import Predication, EventOption
+from perplexity.vocabulary import Predication, EventOption, ValueSize
 
 vocabulary = system_vocabulary()
 
@@ -68,7 +69,7 @@ class WorldState(State):
         return entities
 
     def user_wants(self, wanted):
-        #if wanted not in self.get_entities():
+        # if wanted not in self.get_entities():
         #   return [RespondOperation("Sorry, we don't have that.")]
 
         if wanted[0] == "{":
@@ -84,12 +85,13 @@ class WorldState(State):
                     if wanted_dict["for_count"] < 2:
                         return [RespondOperation("Johnny: Hey! That's not enough seats!")]
                     if wanted_dict["for_count"] == 2:
-                        return(RespondOperation("Host: Perfect! Please come right this way. The host shows you to a wooden table with a checkered tablecloth. "
-                                                "A minute goes by, then your waiter arrives.\nWaiter: Hi there, can I get you something to eat?"),AddRelOp(("user", "at", "table")))
+                        return (RespondOperation(
+                            "Host: Perfect! Please come right this way. The host shows you to a wooden table with a checkered tablecloth. "
+                            "A minute goes by, then your waiter arrives.\nWaiter: Hi there, can I get you something to eat?"),
+                                AddRelOp(("user", "at", "table")))
 
                 else:
                     wanted = wanted_dict["noun"]
-
 
         for i in all_instances_and_spec(self, "food"):
             if i == wanted:
@@ -189,8 +191,9 @@ class WorldState(State):
             else:
                 return [RespondOperation("Sorry, we don't have that")]
         elif self.sys["responseState"] in ["anticipate_party_size"]:
-            if isinstance(x_binding.value[0],Measurement):
-                return self.handle_world_event(["user_wants",json.dumps({"structure":"noun_for","noun":"table1","for_count":x_binding.value[0].count})])
+            if isinstance(x_binding.value[0], Measurement):
+                return self.handle_world_event(["user_wants", json.dumps(
+                    {"structure": "noun_for", "noun": "table1", "for_count": x_binding.value[0].count})])
             else:
                 return [RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")]
         else:
@@ -380,7 +383,9 @@ def card(state, c_number, e_binding, x_binding):
         yield state.set_x(x_binding.variable.name, (Measurement("generic_cardinality", int(c_number)),))
     else:
         if state.get_binding(x_binding.variable.name).value[0] is str:
-            yield state.set_x(x_binding.variable.name,(Measurement(state.get_binding(x_binding.variable.name).value[0], int(c_number)),))
+            yield state.set_x(x_binding.variable.name,
+                              (Measurement(state.get_binding(x_binding.variable.name).value[0], int(c_number)),))
+
 
 @Predication(vocabulary, names=["_for_p"])
 def _for_p(state, e_binding, x_binding, x_binding2):
@@ -393,7 +398,8 @@ def _for_p(state, e_binding, x_binding, x_binding2):
         if not what_measuring == "generic_cardinality":
             yield state
         else:
-            yield state.set_x(x_binding.variable.name,(json.dumps({"structure":"noun_for","noun":what_is,"for_count":what_for.count}),))
+            yield state.set_x(x_binding.variable.name,
+                              (json.dumps({"structure": "noun_for", "noun": what_is, "for_count": what_for.count}),))
 
 
 @Predication(vocabulary, names=["_cash_n_1"])
@@ -702,6 +708,15 @@ def polite(state, c_arg, i_binding, e_binding):
 def _thanks_a_1(state, i_binding, h_binding):
     yield from call(state, h_binding)
 
+#
+# @Predication(vocabulary, names=["_and_c"])
+# def _and_c(state, x_binding_introduced, x_binding_first, x_binding_second):
+#     assert(state.get_binding(x_binding_first.variable.name).value[0] is not None)
+#     assert (state.get_binding(x_binding_second.variable.name).value[0] is not None)
+#     yield state.set_x(x_binding_introduced.variable.name,
+#                       state.get_binding(x_binding_first.variable.name).value + state.get_binding(x_binding_second.variable.name).value,
+#                       combinatoric=True)
+
 
 class RequestVerbTransitive:
     def __init__(self, predicate_name_list, lemma, logic):
@@ -710,7 +725,6 @@ class RequestVerbTransitive:
         self.logic = logic
 
     def predicate_func(self, state, e_binding, x_actor_binding, x_object_binding):
-
         j = state.get_binding("tree").value[0]["Index"]
         is_request = False
         if not e_binding is None:
@@ -722,8 +736,13 @@ class RequestVerbTransitive:
             "_could_v_modal", "_can_v_modal", "_would_v_modal"]
         is_future = (state.get_binding("tree").value[0]["Variables"][j]["TENSE"] == "fut")
 
+        # if self.lemma == "have":
+        #     if state.get_binding(x_actor_binding.variable.name).value[0] == "computer":
+        #         if state.get_binding(x_object_binding.variable.name).value is None:
+        #             yield state.record_operations(state.handle_world_event(["user_wants", "menu1"]))
+
         def bound(x_actor, x_object):
-            if (is_modal or is_future or is_request) and x_actor == "user":
+            if (is_modal or is_future or is_request) and (x_actor == ("user",) or x_actor == "user"):
                 return True
             else:
                 if self.lemma in state.rel.keys():
@@ -745,9 +764,9 @@ class RequestVerbTransitive:
                         yield i[0]
                         something_sees = True
                 if not something_sees:
-                    report_error(["Nothing_VTRANS_X",self.lemma, x_object])
+                    report_error(["Nothing_VTRANS_X", self.lemma, x_object])
             else:
-                report_error(["No_VTRANS",self.lemma, x_object])
+                report_error(["No_VTRANS", self.lemma, x_object])
 
         def object_from_actor(x_actor):
             if self.lemma in state.rel.keys():
@@ -758,10 +777,12 @@ class RequestVerbTransitive:
                         sees_something = True
                 report_error(["X_VTRANS_Nothing", self.lemma, x_actor])
             else:
-                report_error(["No_VTRANS",self.lemma, x_actor])
+                report_error(["No_VTRANS", self.lemma, x_actor])
 
-        for success_state in in_style_predication_2(state, x_actor_binding, x_object_binding, bound, actor_from_object,
+        state_exists = False
+        for success_state in lift_style_predication_2(state, x_actor_binding, x_object_binding, bound, actor_from_object,
                                                     object_from_actor):
+            state_exists = True
             x_act = success_state.get_binding(x_actor_binding.variable.name).value[0]
             x_obj = success_state.get_binding(x_object_binding.variable.name).value[0]
 
@@ -770,7 +791,8 @@ class RequestVerbTransitive:
                     yield success_state.record_operations(success_state.handle_world_event([self.logic, x_obj, x_act]))
             else:
                 yield success_state
-
+        if not state_exists:
+            report_error(["RequestVerbTransitiveFailure"])
 
 class RequestVerbIntransitive:
     def __init__(self, predicate_name_list, lemma, logic):
@@ -824,7 +846,7 @@ see = RequestVerbTransitive(["_see_v_1"], "see", "user_wants_to_see")
 sit_down = RequestVerbIntransitive(["_sit_v_down"], "sitting_down", "user_wants_to_sit")
 
 
-@Predication(vocabulary, names=have.predicate_name_list, handles=[("request_type", EventOption.optional)])
+@Predication(vocabulary, names=have.predicate_name_list, handles=[("request_type", EventOption.optional)], arguments=[("e",), ("x", ValueSize.all), ("x", ValueSize.all)])
 def _have_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
     yield from have.predicate_func(state, e_introduced_binding, x_actor_binding, x_object_binding)
 
@@ -1046,6 +1068,7 @@ def reset():
 
     return initial_state
 
+
 def error_priority(error_string):
     global error_priority_dict
     if error_string is None:
@@ -1058,6 +1081,8 @@ def error_priority(error_string):
             priority -= len(error_string[1][1])
 
         return priority
+
+
 error_priority_dict = {
     # Unknown words error should only be shown if
     # there are no other errors, AND the number
@@ -1074,8 +1099,10 @@ error_priority_dict = {
     "success": 10000000
 }
 
+
 def hello_world():
-    user_interface = UserInterface(reset, vocabulary, message_function=generate_custom_message, error_priority_function=error_priority)
+    user_interface = UserInterface(reset, vocabulary, message_function=generate_custom_message,
+                                   error_priority_function=error_priority)
 
     while True:
         user_interface.interact_once()
