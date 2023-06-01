@@ -7,6 +7,7 @@ from perplexity.generation import english_for_delphin_variable
 from perplexity.plurals import VariableCriteria
 from perplexity.predications import combinatorial_style_predication_1, in_style_predication_2, quantifier_raw
 from perplexity.response import RespondOperation
+from perplexity.set_utilities import Measurement
 from perplexity.state import State
 from perplexity.system_vocabulary import system_vocabulary
 from perplexity.tree import find_predication_from_introduced
@@ -67,8 +68,28 @@ class WorldState(State):
         return entities
 
     def user_wants(self, wanted):
-        if wanted not in self.get_entities():
-            return [RespondOperation("Sorry, we don't have that.")]
+        #if wanted not in self.get_entities():
+        #   return [RespondOperation("Sorry, we don't have that.")]
+
+        if wanted[0] == "{":
+            wanted_dict = json.loads(wanted)
+            if wanted_dict["structure"] == "noun_for":
+                if wanted_dict["noun"] == "table1":
+                    if "at" in self.rel.keys():
+                        if ("user", "table") in self.rel["at"]:
+                            return [RespondOperation("Um... You're at a table. Can I get you something else?"),
+                                    ResponseStateOp("anything_else")]
+                    if wanted_dict["for_count"] > 2:
+                        return [RespondOperation("Host: Sorry, we don't have a table with that many seats")]
+                    if wanted_dict["for_count"] < 2:
+                        return [RespondOperation("Johnny: Hey! That's not enough seats!")]
+                    if wanted_dict["for_count"] == 2:
+                        return(RespondOperation("Host: Perfect! Please come right this way. The host shows you to a wooden table with a checkered tablecloth. "
+                                                "A minute goes by, then your waiter arrives.\nWaiter: Hi there, can I get you something to eat?"),AddRelOp(("user", "at", "table")))
+
+                else:
+                    wanted = wanted_dict["noun"]
+
 
         for i in all_instances_and_spec(self, "food"):
             if i == wanted:
@@ -91,9 +112,7 @@ class WorldState(State):
                     if ("user", "table") in self.rel["at"]:
                         return [RespondOperation("Um... You're at a table. Can I get you something else?"),
                                 ResponseStateOp("anything_else")]
-                return [AddRelOp(("user", "at", "table")),
-                        RespondOperation(
-                            "Robot: Right this way!\nThe robot shows you to a wooden table\nRobot: I hope you have a lovely dining experience with us today. Make sure to ask your waiter for the specials!\nA minute passes \nRobot Waiter: Hello! How can I help you?")]
+                return [RespondOperation("How many in your party?"), ResponseStateOp("anticipate_party_size")]
         for i in all_instances_and_spec(self, "menu"):
             if i == wanted:
                 if "at" in self.rel.keys():
@@ -142,7 +161,7 @@ class WorldState(State):
             if len(items) == 3:
                 item_str = "a " + items[0] + ", a " + items[1] + ", and a " + items[2]
             for i in items:
-                self.add_rel("user","have",i)
+                self.add_rel("user", "have", i)
 
             return [RespondOperation(
                 "Ok, I'll be right back with your meal.\nA few minutes go by and the robot returns with " + item_str + ".\nThe food is good, but nothing extraordinary."),
@@ -153,7 +172,7 @@ class WorldState(State):
             return [RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")]
 
     def yes(self):
-        if self.sys["responseState"] in ["anything_else","initial"]:
+        if self.sys["responseState"] in ["anything_else", "initial"]:
             return [RespondOperation("Ok, what?"), ResponseStateOp("anticipate_dish")]
         else:
             return [RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")]
@@ -169,6 +188,11 @@ class WorldState(State):
                 return self.handle_world_event(["user_wants", x_binding.value[0]])
             else:
                 return [RespondOperation("Sorry, we don't have that")]
+        elif self.sys["responseState"] in ["anticipate_party_size"]:
+            if isinstance(x_binding.value[0],Measurement):
+                return self.handle_world_event(["user_wants",json.dumps({"structure":"noun_for","noun":"table1","for_count":x_binding.value[0].count})])
+            else:
+                return [RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")]
         else:
             return [RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")]
 
@@ -326,10 +350,10 @@ def generic_entity(state, x_binding):
 
     yield from combinatorial_style_predication_1(state, x_binding, bound, unbound)
 
+
 @Predication(vocabulary, names=["_okay_a_1"])
 def _okay_a_1(state, i_binding, h_binding):
     yield from call(state, h_binding)
-
 
 
 @Predication(vocabulary, names=["much-many_a"], handles=[("relevant_var", EventOption.optional)])
@@ -348,6 +372,28 @@ def measure(state, e_binding, e_binding2, x_binding):
 @Predication(vocabulary, names=["abstr_deg"])
 def abstr_deg(state, x_binding):
     yield state.set_x(x_binding.variable.name, ("abstract_degree",))
+
+
+@Predication(vocabulary, names=["card"])
+def card(state, c_number, e_binding, x_binding):
+    if state.get_binding(x_binding.variable.name).value[0] == "generic_entity":
+        yield state.set_x(x_binding.variable.name, (Measurement("generic_cardinality", int(c_number)),))
+    else:
+        if state.get_binding(x_binding.variable.name).value[0] is str:
+            yield state.set_x(x_binding.variable.name,(Measurement(state.get_binding(x_binding.variable.name).value[0], int(c_number)),))
+
+@Predication(vocabulary, names=["_for_p"])
+def _for_p(state, e_binding, x_binding, x_binding2):
+    what_is = state.get_binding(x_binding.variable.name).value[0]
+    what_for = state.get_binding(x_binding2.variable.name).value[0]
+    if not isinstance(what_for, Measurement):
+        yield state
+    else:
+        what_measuring = what_for.measurement_type
+        if not what_measuring == "generic_cardinality":
+            yield state
+        else:
+            yield state.set_x(x_binding.variable.name,(json.dumps({"structure":"noun_for","noun":what_is,"for_count":what_for.count}),))
 
 
 @Predication(vocabulary, names=["_cash_n_1"])
@@ -381,7 +427,6 @@ def _credit_n_1(state, x_bind):
         yield "credit"
 
     yield from combinatorial_style_predication_1(state, x_bind, bound, unbound)
-
 
 
 @Predication(vocabulary, names=["unknown"])
@@ -625,7 +670,7 @@ def _like_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
 def _like_v_1_exh(state, e_introduced_binding, x_actor_binding, h_binding):
     event_to_mod = h_binding.args[0]
 
-    yield from call(state.add_to_e(event_to_mod,"request_type",True), h_binding)
+    yield from call(state.add_to_e(event_to_mod, "request_type", True), h_binding)
 
 
 @Predication(vocabulary, names=["_would_v_modal"])
@@ -694,15 +739,26 @@ class RequestVerbTransitive:
 
         def actor_from_object(x_object):
             if self.lemma in state.rel.keys():
+                something_sees = False
                 for i in state.rel[self.lemma]:
                     if i[1] == x_object:
                         yield i[0]
+                        something_sees = True
+                if not something_sees:
+                    report_error(["Nothing_VTRANS_X",self.lemma, x_object])
+            else:
+                report_error(["No_VTRANS",self.lemma, x_object])
 
         def object_from_actor(x_actor):
             if self.lemma in state.rel.keys():
+                sees_something = False
                 for i in state.rel[self.lemma]:
                     if i[0] == x_actor:
                         yield i[1]
+                        sees_something = True
+                report_error(["X_VTRANS_Nothing", self.lemma, x_actor])
+            else:
+                report_error(["No_VTRANS",self.lemma, x_actor])
 
         for success_state in in_style_predication_2(state, x_actor_binding, x_object_binding, bound, actor_from_object,
                                                     object_from_actor):
@@ -777,10 +833,10 @@ def _have_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
 def _see_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
     yield from see.predicate_func(state, e_introduced_binding, x_actor_binding, x_object_binding)
 
+
 @Predication(vocabulary, names=sit_down.predicate_name_list, handles=[("request_type", EventOption.optional)])
 def _sit_v_down(state, e_introduced_binding, x_actor_binding):
     yield from sit_down.predicate_func(state, e_introduced_binding, x_actor_binding)
-
 
 
 @Predication(vocabulary, names=["poss"])
@@ -903,12 +959,13 @@ def _be_v_there(state, e_introduced_binding, x_object_binding):
 
     yield from combinatorial_style_predication_1(state, x_object_binding, bound_variable, unbound_variable)
 
+
 @Predication(vocabulary, names=["compound"])
 def compound(state, e_introduced_binding, x_first_binding, x_second_binding):
-    assert(x_first_binding is not None)
+    assert (x_first_binding is not None)
     assert (x_second_binding is not None)
-    yield state.set_x(x_first_binding.variable.name, (state.get_binding(x_first_binding.variable.name).value[0] + ", " + state.get_binding(x_second_binding.variable.name).value[0],))
-
+    yield state.set_x(x_first_binding.variable.name, (state.get_binding(x_first_binding.variable.name).value[0] + ", " +
+                                                      state.get_binding(x_second_binding.variable.name).value[0],))
 
 
 # Generates all the responses that predications can
@@ -961,6 +1018,8 @@ def reset():
 
     initial_state = initial_state.add_rel("salad1", "instanceOf", "salad")
     initial_state = initial_state.add_rel("table1", "instanceOf", "table")
+    initial_state = initial_state.add_rel("table1", "maxCap", 4)
+
     initial_state = initial_state.add_rel("soup1", "instanceOf", "soup")
     initial_state = initial_state.add_rel("menu1", "instanceOf", "menu")
     initial_state = initial_state.add_rel("pizza1", "instanceOf", "pizza")
@@ -987,9 +1046,36 @@ def reset():
 
     return initial_state
 
+def error_priority(error_string):
+    global error_priority_dict
+    if error_string is None:
+        return 0
+
+    else:
+        error_constant = error_string[1][0]
+        priority = error_priority_dict.get(error_constant, error_priority_dict["defaultPriority"])
+        if error_constant == "unknownWords":
+            priority -= len(error_string[1][1])
+
+        return priority
+error_priority_dict = {
+    # Unknown words error should only be shown if
+    # there are no other errors, AND the number
+    # of unknown words is subtracted from it so
+    # lower constants should be defined below this:
+    # "unknownWordsMin": 800,
+    "unknownWords": 900,
+    # Slightly better than not knowing the word at all
+    "formNotUnderstood": 901,
+    "defaultPriority": 1000,
+
+    # This is just used when sorting to indicate no error, i.e. success.
+    # Nothing should be higher
+    "success": 10000000
+}
 
 def hello_world():
-    user_interface = UserInterface(reset, vocabulary, message_function=generate_custom_message)
+    user_interface = UserInterface(reset, vocabulary, message_function=generate_custom_message, error_priority_function=error_priority)
 
     while True:
         user_interface.interact_once()
@@ -997,6 +1083,6 @@ def hello_world():
 
 
 if __name__ == '__main__':
-    print("Welcome to my Restaurant. Can I get you something?")
+    print("Hello there, what can I do for you?")
     ShowLogging("Pipeline")
     hello_world()
