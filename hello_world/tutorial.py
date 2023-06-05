@@ -88,7 +88,7 @@ class WorldState(State):
                         return (RespondOperation(
                             "Host: Perfect! Please come right this way. The host shows you to a wooden table with a checkered tablecloth. "
                             "A minute goes by, then your waiter arrives.\nWaiter: Hi there, can I get you something to eat?"),
-                                AddRelOp(("user", "at", "table")))
+                                AddRelOp(("user", "at", "table")),ResponseStateOp("something_to_eat"))
 
                 else:
                     wanted = wanted_dict["noun"]
@@ -119,7 +119,9 @@ class WorldState(State):
             if i == wanted:
                 if "at" in self.rel.keys():
                     if ("user", "table") in self.rel["at"]:
-                        return [RespondOperation("Here's the menu...\n...Steak -- $10...")]
+                        if not ("user", "menu1") not in self.rel["have"]:
+                            return [AddRelOp(("user", "have", "menu1")), RespondOperation("Waiter: Oh, I forgot to give you the menu? Here it is. The waiter walks off.\nSteak -- $5\nRoasted Chicken -- $7\nGrilled Salmon -- $12\nYou read the menu and then the waiter returns.\nWaiter: Have you decided what to order?"), ResponseStateOp("what_to_order")]
+                        return [RespondOperation("Oh, I already gave you a menu. You look and see that there is a menu in front of you.\nSteak -- $5\nRoasted Chicken -- $7\nGrilled Salmon -- $12\nWaiter: Have you decided what to order?"), ResponseStateOp("what_to_order")]
                 return [RespondOperation("Sorry, you must be seated to order")]
 
         if wanted == "bill1":
@@ -155,13 +157,8 @@ class WorldState(State):
                     if i[1] in items:
                         items.remove(i[1])
 
-            item_str = ""
-            if len(items) == 1:
-                item_str = "a " + items[0]
-            if len(items) == 2:
-                item_str = "a " + items[0] + " and a " + items[1]
-            if len(items) == 3:
-                item_str = "a " + items[0] + ", a " + items[1] + ", and a " + items[2]
+            item_str = " ".join(items)
+
             for i in items:
                 self.add_rel("user", "have", i)
 
@@ -199,7 +196,16 @@ class WorldState(State):
         else:
             return [RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")]
 
+    def party_size(self, args):
+        if args[0] == "unknown":
+            x_binding = args[1]
+            if isinstance(x_binding.value[0], Measurement):
+                return self.handle_world_event(["user_wants", json.dumps(
+                    {"structure": "noun_for", "noun": "table1", "for_count": x_binding.value[0].count})])
+            else:
+                return [RespondOperation("Sorry, I didn't get that. How many in your party?")]
     def handle_world_event(self, args):
+        # if self.sys["responseState"] == "anticipate_party_size":
         if args[0] == "user_wants":
             return self.user_wants(args[1])
         elif args[0] == "user_wants_to_see":
@@ -736,10 +742,11 @@ class RequestVerbTransitive:
             "_could_v_modal", "_can_v_modal", "_would_v_modal"]
         is_future = (state.get_binding("tree").value[0]["Variables"][j]["TENSE"] == "fut")
 
-        # if self.lemma == "have":
-        #     if state.get_binding(x_actor_binding.variable.name).value[0] == "computer":
-        #         if state.get_binding(x_object_binding.variable.name).value is None:
-        #             yield state.record_operations(state.handle_world_event(["user_wants", "menu1"]))
+        if self.lemma == "have":
+            if state.get_binding(x_actor_binding.variable.name).value[0] == "computer":
+                if state.get_binding(x_object_binding.variable.name).value is None:
+                    yield state.record_operations(state.handle_world_event(["user_wants", "menu1"]))
+                    return
 
         def bound(x_actor, x_object):
             if (is_modal or is_future or is_request) and (x_actor == ("user",) or x_actor == "user"):
