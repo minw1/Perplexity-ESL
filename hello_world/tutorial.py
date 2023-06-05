@@ -5,12 +5,12 @@ import perplexity.messages
 from perplexity.execution import report_error, call, execution_context
 from perplexity.generation import english_for_delphin_variable
 from perplexity.plurals import VariableCriteria
-from perplexity.predications import combinatorial_style_predication_1, in_style_predication_2, quantifier_raw, \
+from perplexity.predications import combinatorial_predication_1, in_style_predication_2, \
     lift_style_predication_2
 from perplexity.response import RespondOperation
 from perplexity.set_utilities import Measurement
 from perplexity.state import State
-from perplexity.system_vocabulary import system_vocabulary
+from perplexity.system_vocabulary import system_vocabulary, quantifier_raw
 from perplexity.tree import find_predication_from_introduced
 from perplexity.user_interface import UserInterface
 from perplexity.utilities import ShowLogging
@@ -337,7 +337,7 @@ def pron(state, x_who_binding):
         if person == 1:
             yield "user"
 
-    yield from combinatorial_style_predication_1(state, x_who_binding, bound_variable, unbound_variable)
+    yield from combinatorial_predication_1(state, x_who_binding, bound_variable, unbound_variable)
 
 
 @Predication(vocabulary, names=["generic_entity"])
@@ -351,7 +351,7 @@ def generic_entity(state, x_binding):
         #    yield i
         yield "generic_entity"
 
-    yield from combinatorial_style_predication_1(state, x_binding, bound, unbound)
+    yield from combinatorial_predication_1(state, x_binding, bound, unbound)
 
 
 @Predication(vocabulary, names=["_okay_a_1"])
@@ -410,7 +410,7 @@ def _cash_n_1(state, x_bind):
     def unbound():
         yield "cash"
 
-    yield from combinatorial_style_predication_1(state, x_bind, bound, unbound)
+    yield from combinatorial_predication_1(state, x_bind, bound, unbound)
 
 
 @Predication(vocabulary, names=["_card_n_1"])
@@ -421,7 +421,7 @@ def _card_n_1(state, x_bind):
     def unbound():
         yield "card"
 
-    yield from combinatorial_style_predication_1(state, x_bind, bound, unbound)
+    yield from combinatorial_predication_1(state, x_bind, bound, unbound)
 
 
 @Predication(vocabulary, names=["_credit_n_1"])
@@ -432,7 +432,7 @@ def _credit_n_1(state, x_bind):
     def unbound():
         yield "credit"
 
-    yield from combinatorial_style_predication_1(state, x_bind, bound, unbound)
+    yield from combinatorial_predication_1(state, x_bind, bound, unbound)
 
 
 @Predication(vocabulary, names=["unknown"])
@@ -474,7 +474,7 @@ def match_all_n(noun_type, state, x_binding):
     def unbound_variable():
         yield from all_instances(state, noun_type)
 
-    yield from combinatorial_style_predication_1(state, x_binding, bound_variable, unbound_variable)
+    yield from combinatorial_predication_1(state, x_binding, bound_variable, unbound_variable)
 
 
 @Predication(vocabulary, names=["match_all_n"], matches_lemma_function=handles_noun)
@@ -559,7 +559,7 @@ def _check_v_1(state, e_introduced_binding, x_actor_binding, i_object_binding):
         if False:
             yield None
 
-    for success_state in combinatorial_style_predication_1(state, x_actor_binding, criteria_bound, unbound):
+    for success_state in combinatorial_predication_1(state, x_actor_binding, criteria_bound, unbound):
         yield success_state.record_operations(state.handle_world_event(["user_wants", "bill1"]))
 
 
@@ -631,7 +631,7 @@ def _today_a_1(state, e_introduced_binding, x_binding):
     def unbound_variable():
         yield "today"
 
-    yield from combinatorial_style_predication_1(state, x_binding, bound_variable, unbound_variable)
+    yield from combinatorial_predication_1(state, x_binding, bound_variable, unbound_variable)
 
 
 @Predication(vocabulary, names=["time_n"])
@@ -648,7 +648,7 @@ def time_n(state, x_binding):
         yield "yesterday"
         yield "tomorrow"
 
-    yield from combinatorial_style_predication_1(state, x_binding, bound_variable, unbound_variable)
+    yield from combinatorial_predication_1(state, x_binding, bound_variable, unbound_variable)
 
 
 @Predication(vocabulary, names=["def_implicit_q", "def_explicit_q"])
@@ -772,15 +772,16 @@ class RequestVerbTransitive:
             if self.lemma in state.rel.keys():
                 sees_something = False
                 for i in state.rel[self.lemma]:
-                    if i[0] == x_actor:
+                    if i[0] == x_actor or i[0] == x_actor[0]:
                         yield i[1]
                         sees_something = True
-                report_error(["X_VTRANS_Nothing", self.lemma, x_actor])
+                if not sees_something:
+                    report_error(["X_VTRANS_Nothing", self.lemma, x_actor])
             else:
                 report_error(["No_VTRANS", self.lemma, x_actor])
 
         state_exists = False
-        for success_state in lift_style_predication_2(state, x_actor_binding, x_object_binding, bound, actor_from_object,
+        for success_state in in_style_predication_2(state, x_actor_binding, x_object_binding, bound, actor_from_object,
                                                     object_from_actor):
             state_exists = True
             x_act = success_state.get_binding(x_actor_binding.variable.name).value[0]
@@ -832,7 +833,7 @@ class RequestVerbIntransitive:
                 for i in state.rel[self.lemma]:
                     yield i[0]
 
-        for success_state in combinatorial_style_predication_1(state, x_actor_binding, bound, unbound):
+        for success_state in combinatorial_predication_1(state, x_actor_binding, bound, unbound):
             x_act = success_state.get_binding(x_actor_binding.variable.name).value[0]
 
             if (is_modal or is_future or is_request) and x_act == "user":
@@ -979,7 +980,7 @@ def _be_v_there(state, e_introduced_binding, x_object_binding):
         for i in state.get_entities():
             yield i
 
-    yield from combinatorial_style_predication_1(state, x_object_binding, bound_variable, unbound_variable)
+    yield from combinatorial_predication_1(state, x_object_binding, bound_variable, unbound_variable)
 
 
 @Predication(vocabulary, names=["compound"])
