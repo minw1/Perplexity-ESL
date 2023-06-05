@@ -56,12 +56,14 @@ class WorldState(State):
             if new_relation["valueOf"][i][1] == "bill1":
                 new_relation["valueOf"][i] = (addition + new_relation["valueOf"][i][0], "bill1")
         self.rel = new_relation
+
     def mutate_reset_bill(self):
         new_relation = copy.deepcopy(self.rel)
         for i in range(len(new_relation["valueOf"])):
             if new_relation["valueOf"][i][1] == "bill1":
                 new_relation["valueOf"][i] = (0, "bill1")
         self.rel = new_relation
+
     def mutate_reset_order(self):
         new_relation = copy.deepcopy(self.rel)
         new_relation["ordered"] = []
@@ -87,15 +89,15 @@ class WorldState(State):
             return " Can I get you something else before I put your order in?"
         return ""
 
-
     def user_ordered_veg(self):
-        veggies = list(all_instances(self,"veggie"))
+        veggies = list(all_instances(self, "veggie"))
         if "ordered" in self.rel.keys():
             for i in self.rel["ordered"]:
                 if i[0] == "user":
                     if i[1] in veggies:
                         return True
         return False
+
     def user_wants(self, wanted):
         # if wanted not in self.get_entities():
         #   return [RespondOperation("Sorry, we don't have that.")]
@@ -116,7 +118,7 @@ class WorldState(State):
                         return (RespondOperation(
                             "Host: Perfect! Please come right this way. The host shows you to a wooden table with a checkered tablecloth. "
                             "A minute goes by, then your waiter arrives.\nWaiter: Hi there, can I get you something to eat?"),
-                                AddRelOp(("user", "at", "table")),ResponseStateOp("something_to_eat"))
+                                AddRelOp(("user", "at", "table")), ResponseStateOp("something_to_eat"))
 
                 else:
                     wanted = wanted_dict["noun"]
@@ -147,9 +149,12 @@ class WorldState(State):
                 if "at" in self.rel.keys():
                     if ("user", "table") in self.rel["at"]:
                         if ("user", "menu1") not in self.rel["have"]:
-                            return [AddRelOp(("user", "have", "menu1")), RespondOperation("Waiter: Oh, I forgot to give you the menu? Here it is. The waiter walks off.\nSteak -- $5\nRoasted Chicken -- $7\nGrilled Salmon -- $12\nYou read the menu and then the waiter returns.\nWaiter: What can I get you?"), ResponseStateOp("anticipate_dish")]
+                            return [AddRelOp(("user", "have", "menu1")), RespondOperation(
+                                "Waiter: Oh, I forgot to give you the menu? Here it is. The waiter walks off.\nSteak -- $5\nRoasted Chicken -- $7\nGrilled Salmon -- $12\nYou read the menu and then the waiter returns.\nWaiter: What can I get you?"),
+                                    ResponseStateOp("anticipate_dish")]
                         else:
-                            return [RespondOperation("Oh, I already gave you a menu. You look and see that there is a menu in front of you.\nSteak -- $5\nRoasted Chicken -- $7\nGrilled Salmon -- $12\n" + self.get_reprompt())]
+                            return [RespondOperation(
+                                "Oh, I already gave you a menu. You look and see that there is a menu in front of you.\nSteak -- $5\nRoasted Chicken -- $7\nGrilled Salmon -- $12\n" + self.get_reprompt())]
                 return [RespondOperation("Sorry, you must be seated to order")]
 
         if wanted == "bill1":
@@ -161,13 +166,13 @@ class WorldState(State):
                             "Your total is " + str(total) + " dollars. Would you like to pay by cash or card?"),
                             ResponseStateOp("way_to_pay")]
                     else:
-                        return [RespondOperation("But... you haven't got any food yet!")]
+                        return [RespondOperation("But... you haven't got any food yet!" + self.get_reprompt())]
 
         return [RespondOperation("Sorry, I can't get that for you at the moment.")]
 
     def user_wants_to_see(self, wanted):
         if wanted == "menu1":
-                return self.user_wants("menu1")
+            return self.user_wants("menu1")
         elif wanted == "table1":
             return [RespondOperation("All our tables are nice. Trust me on this one" + self.get_reprompt())]
         else:
@@ -176,8 +181,9 @@ class WorldState(State):
     def no(self):
         if self.sys["responseState"] == "anything_else":
             if not self.user_ordered_veg():
-                return [RespondOperation("Son: Dad! I’m vegetarian, remember?? Why did you only order meat? \nMaybe they have some other dishes that aren’t on the menu… You tell the waiter to restart your order.\nWaiter: Ok, can I get you something else to eat?"), ResponseStateOp("something_to_eat"), ResetOrderAndBillOp()]
-
+                return [RespondOperation(
+                    "Son: Dad! I’m vegetarian, remember?? Why did you only order meat? \nMaybe they have some other dishes that aren’t on the menu… You tell the waiter to restart your order.\nWaiter: Ok, can I get you something else to eat?"),
+                        ResponseStateOp("something_to_eat"), ResetOrderAndBillOp()]
 
             items = [i for (x, i) in self.rel["ordered"]]
             for i in self.rel["have"]:
@@ -194,7 +200,8 @@ class WorldState(State):
                 "Ok, I'll be right back with your meal.\nA few minutes go by and the robot returns with " + item_str + ".\nThe food is good, but nothing extraordinary."),
                 ResponseStateOp("done_ordering")]
         elif self.sys["responseState"] == "something_to_eat":
-            return [RespondOperation("Well if you aren't going to order anything, you'll have to leave the restaurant, so I'll ask you again: can I get you something to eat?")]
+            return [RespondOperation(
+                "Well if you aren't going to order anything, you'll have to leave the restaurant, so I'll ask you again: can I get you something to eat?")]
         else:
             return [RespondOperation("Hmm. I didn't understand what you said." + self.get_reprompt())]
 
@@ -233,6 +240,7 @@ class WorldState(State):
                 {"structure": "noun_for", "noun": "table1", "for_count": x.count})])
         else:
             return [RespondOperation("Sorry, I didn't catch that. How many in your party?")]
+
     def handle_world_event(self, args):
         if self.sys["responseState"] == "anticipate_party_size":
             return self.party_size(args)
@@ -346,10 +354,12 @@ class AddBillOp(object):
         assert (self.toAdd in prices)
         state.mutate_add_bill(prices[self.toAdd])
 
+
 class ResetOrderAndBillOp(object):
     def apply_to(self, state):
         state.mutate_reset_bill()
         state.mutate_reset_order()
+
 
 class ResponseStateOp(object):
     def __init__(self, item):
@@ -497,7 +507,7 @@ def _no_a_1(state, i_binding, h_binding):
 
 def handles_noun(noun_lemma):
     return noun_lemma in ["special", "food", "menu", "soup", "salad", "table", "thing", "steak", "meat", "bill",
-                          "check"]
+                          "check", "dish"]
 
 
 # Simple example of using match_all that doesn't do anything except
@@ -519,7 +529,27 @@ def match_all_n(noun_type, state, x_binding):
 
 @Predication(vocabulary, names=["match_all_n"], matches_lemma_function=handles_noun)
 def match_all_n_i(noun_type, state, x_binding, i_binding):
-    return match_all_n(noun_type, state, x_binding)
+    yield from match_all_n(noun_type, state, x_binding)
+
+
+@Predication(vocabulary, names=["_vegetarian_a_1"])
+def _vegetarian_a_1(state, e_introduced_binding, x_target_binding):
+    def criteria_bound(value):
+        veg = all_instances(state, "veggie")
+        if value in veg:
+            return True
+        else:
+            report_error(["Not Veg"])
+            return False
+
+    def unbound_values():
+        # Find all large things
+        for i in all_instances(state, "veggie"):
+            yield i
+
+    yield from combinatorial_predication_1(state, x_target_binding,
+                                           criteria_bound,
+                                           unbound_values)
 
 
 @Predication(vocabulary, names=("_on_p_loc",))
@@ -744,9 +774,10 @@ def polite(state, c_arg, i_binding, e_binding):
     yield state
 
 
-@Predication(vocabulary, names=["_thanks_a_1"])
+@Predication(vocabulary, names=["_thanks_a_1", "_then_a_1"])
 def _thanks_a_1(state, i_binding, h_binding):
     yield from call(state, h_binding)
+
 
 #
 # @Predication(vocabulary, names=["_and_c"])
@@ -779,7 +810,8 @@ class RequestVerbTransitive:
         if self.lemma == "have":
             if state.get_binding(x_actor_binding.variable.name).value[0] == "computer":
                 if state.get_binding(x_object_binding.variable.name).value is None:
-                    yield state.set_x(x_object_binding.variable.name, ("dummy_variable",)).record_operations(state.handle_world_event(["user_wants", "menu1"]))
+                    yield state.set_x(x_object_binding.variable.name, ("dummy_variable",)).record_operations(
+                        state.handle_world_event(["user_wants", "menu1"]))
                     return
 
         def bound(x_actor, x_object):
@@ -836,6 +868,7 @@ class RequestVerbTransitive:
         if not state_exists:
             report_error(["RequestVerbTransitiveFailure"])
 
+
 class RequestVerbIntransitive:
     def __init__(self, predicate_name_list, lemma, logic):
         self.predicate_name_list = predicate_name_list
@@ -888,7 +921,8 @@ see = RequestVerbTransitive(["_see_v_1"], "see", "user_wants_to_see")
 sit_down = RequestVerbIntransitive(["_sit_v_down"], "sitting_down", "user_wants_to_sit")
 
 
-@Predication(vocabulary, names=have.predicate_name_list, handles=[("request_type", EventOption.optional)], arguments=[("e",), ("x"), ("x")])
+@Predication(vocabulary, names=have.predicate_name_list, handles=[("request_type", EventOption.optional)],
+             arguments=[("e",), ("x"), ("x")])
 def _have_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
     yield from have.predicate_func(state, e_introduced_binding, x_actor_binding, x_object_binding)
 
@@ -1076,9 +1110,11 @@ def reset():
     initial_state = initial_state.add_rel("table", "specializes", "thing")
     initial_state = initial_state.add_rel("menu", "specializes", "thing")
     initial_state = initial_state.add_rel("food", "specializes", "thing")
+    initial_state = initial_state.add_rel("dish", "specializes", "food")
+
     initial_state = initial_state.add_rel("pizza", "specializes", "food")
-    initial_state = initial_state.add_rel("meat", "specializes", "food")
-    initial_state = initial_state.add_rel("veggie", "specializes", "food")
+    initial_state = initial_state.add_rel("meat", "specializes", "dish")
+    initial_state = initial_state.add_rel("veggie", "specializes", "dish")
     initial_state = initial_state.add_rel("steak", "specializes", "meat")
     initial_state = initial_state.add_rel("chicken", "specializes", "meat")
     initial_state = initial_state.add_rel("salmon", "specializes", "meat")
@@ -1101,6 +1137,8 @@ def reset():
     initial_state = initial_state.add_rel("computer", "have", "salad1")
     initial_state = initial_state.add_rel("computer", "have", "soup1")
     initial_state = initial_state.add_rel("computer", "have", "steak1")
+    initial_state = initial_state.add_rel("computer", "have", "chicken1")
+    initial_state = initial_state.add_rel("computer", "have", "salmon1")
     initial_state = initial_state.add_rel("computer", "have", "table1")
     initial_state = initial_state.add_rel("computer", "have", "menu1")
     initial_state = initial_state.add_rel("user", "have", "bill1")
