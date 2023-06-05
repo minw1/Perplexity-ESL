@@ -847,7 +847,7 @@ see = RequestVerbTransitive(["_see_v_1"], "see", "user_wants_to_see")
 sit_down = RequestVerbIntransitive(["_sit_v_down"], "sitting_down", "user_wants_to_sit")
 
 
-@Predication(vocabulary, names=have.predicate_name_list, handles=[("request_type", EventOption.optional)], arguments=[("e",), ("x", ValueSize.all), ("x", ValueSize.all)])
+@Predication(vocabulary, names=have.predicate_name_list, handles=[("request_type", EventOption.optional)], arguments=[("e",), ("x"), ("x")])
 def _have_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
     yield from have.predicate_func(state, e_introduced_binding, x_actor_binding, x_object_binding)
 
