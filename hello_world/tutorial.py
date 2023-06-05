@@ -56,6 +56,16 @@ class WorldState(State):
             if new_relation["valueOf"][i][1] == "bill1":
                 new_relation["valueOf"][i] = (addition + new_relation["valueOf"][i][0], "bill1")
         self.rel = new_relation
+    def mutate_reset_bill(self):
+        new_relation = copy.deepcopy(self.rel)
+        for i in range(len(new_relation["valueOf"])):
+            if new_relation["valueOf"][i][1] == "bill1":
+                new_relation["valueOf"][i] = (0, "bill1")
+        self.rel = new_relation
+    def mutate_reset_order(self):
+        new_relation = copy.deepcopy(self.rel)
+        new_relation["ordered"] = []
+        self.rel = new_relation
 
     def mutate_set_response_state(self, new_state):
         self.sys["responseState"] = new_state
@@ -68,6 +78,24 @@ class WorldState(State):
                 entities.add(j[1])
         return entities
 
+    def get_reprompt(self):
+        if self.sys["responseState"] == "something_to_eat":
+            return " Can I get you something to eat?"
+        if self.sys["responseState"] == "anticipate_party_size":
+            return " How many in your party?"
+        if self.sys["responseState"] == "anything_else":
+            return " Can I get you something else before I put your order in?"
+        return ""
+
+
+    def user_ordered_veg(self):
+        veggies = list(all_instances(self,"veggie"))
+        if "ordered" in self.rel.keys():
+            for i in self.rel["ordered"]:
+                if i[0] == "user":
+                    if i[1] in veggies:
+                        return True
+        return False
     def user_wants(self, wanted):
         # if wanted not in self.get_entities():
         #   return [RespondOperation("Sorry, we don't have that.")]
@@ -78,7 +106,7 @@ class WorldState(State):
                 if wanted_dict["noun"] == "table1":
                     if "at" in self.rel.keys():
                         if ("user", "table") in self.rel["at"]:
-                            return [RespondOperation("Um... You're at a table. Can I get you something else?"),
+                            return [RespondOperation("Um... You're at a table." + self.get_reprompt()),
                                     ResponseStateOp("anything_else")]
                     if wanted_dict["for_count"] > 2:
                         return [RespondOperation("Host: Sorry, we don't have a table with that many seats")]
@@ -112,16 +140,16 @@ class WorldState(State):
             if i == wanted:
                 if "at" in self.rel.keys():
                     if ("user", "table") in self.rel["at"]:
-                        return [RespondOperation("Um... You're at a table. Can I get you something else?"),
-                                ResponseStateOp("anything_else")]
+                        return [RespondOperation("Um... You're at a table." + self.get_reprompt())]
                 return [RespondOperation("How many in your party?"), ResponseStateOp("anticipate_party_size")]
         for i in all_instances_and_spec(self, "menu"):
             if i == wanted:
                 if "at" in self.rel.keys():
                     if ("user", "table") in self.rel["at"]:
-                        if not ("user", "menu1") not in self.rel["have"]:
-                            return [AddRelOp(("user", "have", "menu1")), RespondOperation("Waiter: Oh, I forgot to give you the menu? Here it is. The waiter walks off.\nSteak -- $5\nRoasted Chicken -- $7\nGrilled Salmon -- $12\nYou read the menu and then the waiter returns.\nWaiter: Have you decided what to order?"), ResponseStateOp("what_to_order")]
-                        return [RespondOperation("Oh, I already gave you a menu. You look and see that there is a menu in front of you.\nSteak -- $5\nRoasted Chicken -- $7\nGrilled Salmon -- $12\nWaiter: Have you decided what to order?"), ResponseStateOp("what_to_order")]
+                        if ("user", "menu1") not in self.rel["have"]:
+                            return [AddRelOp(("user", "have", "menu1")), RespondOperation("Waiter: Oh, I forgot to give you the menu? Here it is. The waiter walks off.\nSteak -- $5\nRoasted Chicken -- $7\nGrilled Salmon -- $12\nYou read the menu and then the waiter returns.\nWaiter: What can I get you?"), ResponseStateOp("anticipate_dish")]
+                        else:
+                            return [RespondOperation("Oh, I already gave you a menu. You look and see that there is a menu in front of you.\nSteak -- $5\nRoasted Chicken -- $7\nGrilled Salmon -- $12\n" + self.get_reprompt())]
                 return [RespondOperation("Sorry, you must be seated to order")]
 
         if wanted == "bill1":
@@ -138,19 +166,19 @@ class WorldState(State):
         return [RespondOperation("Sorry, I can't get that for you at the moment.")]
 
     def user_wants_to_see(self, wanted):
-        prompt_finish_order = "\nCan I get you anything else before I put your order in?" if self.sys[
-                                                                                                 "responseState"] in [
-                                                                                                 "anything_else",
-                                                                                                 "anticipate_dish"] else ""
         if wanted == "menu1":
-            return [RespondOperation("Here's the menu...\n...Steak -- $10..." + prompt_finish_order)]
+                return self.user_wants("menu1")
         elif wanted == "table1":
-            return [RespondOperation("All our tables are nice. Trust me on this one" + prompt_finish_order)]
+            return [RespondOperation("All our tables are nice. Trust me on this one" + self.get_reprompt())]
         else:
-            return [RespondOperation("Sorry, I can't show you that." + prompt_finish_order)]
+            return [RespondOperation("Sorry, I can't show you that." + self.get_reprompt())]
 
     def no(self):
         if self.sys["responseState"] == "anything_else":
+            if not self.user_ordered_veg():
+                return [RespondOperation("Son: Dad! I’m vegetarian, remember?? Why did you only order meat? \nMaybe they have some other dishes that aren’t on the menu… You tell the waiter to restart your order.\nWaiter: Ok, can I get you something else to eat?"), ResponseStateOp("something_to_eat"), ResetOrderAndBillOp()]
+
+
             items = [i for (x, i) in self.rel["ordered"]]
             for i in self.rel["have"]:
                 if i[0] == "user":
@@ -165,47 +193,49 @@ class WorldState(State):
             return [RespondOperation(
                 "Ok, I'll be right back with your meal.\nA few minutes go by and the robot returns with " + item_str + ".\nThe food is good, but nothing extraordinary."),
                 ResponseStateOp("done_ordering")]
-        elif self.sys["responseState"] == "initial":
-            return [RespondOperation("Ok, Goodbye")]
+        elif self.sys["responseState"] == "something_to_eat":
+            return [RespondOperation("Well if you aren't going to order anything, you'll have to leave the restaurant, so I'll ask you again: can I get you something to eat?")]
         else:
-            return [RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")]
+            return [RespondOperation("Hmm. I didn't understand what you said." + self.get_reprompt())]
 
     def yes(self):
-        if self.sys["responseState"] in ["anything_else", "initial"]:
+        if self.sys["responseState"] in ["anything_else", "something_to_eat"]:
             return [RespondOperation("Ok, what?"), ResponseStateOp("anticipate_dish")]
         else:
-            return [RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")]
+            return [RespondOperation("Hmm. I didn't understand what you said." + self.get_reprompt())]
 
-    def unknown(self, x_binding):
+    def unknown(self, x):
         if self.sys["responseState"] == "way_to_pay":
-            if x_binding.value[0] in ["cash", "card", "card, credit"]:
+            if x in ["cash", "card", "card, credit"]:
                 return [RespondOperation("Ah. Perfect! Have a great rest of your day.")]
             else:
-                return [RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")]
+                return [RespondOperation("Hmm. I didn't understand what you said." + self.get_reprompt())]
         elif self.sys["responseState"] in ["anticipate_dish", "anything_else", "initial"]:
-            if x_binding.value[0] in self.get_entities():
-                return self.handle_world_event(["user_wants", x_binding.value[0]])
+            if x in self.get_entities():
+                return self.handle_world_event(["user_wants", x])
             else:
                 return [RespondOperation("Sorry, we don't have that")]
         elif self.sys["responseState"] in ["anticipate_party_size"]:
-            if isinstance(x_binding.value[0], Measurement):
+            if isinstance(x, Measurement):
                 return self.handle_world_event(["user_wants", json.dumps(
-                    {"structure": "noun_for", "noun": "table1", "for_count": x_binding.value[0].count})])
+                    {"structure": "noun_for", "noun": "table1", "for_count": x.count})])
             else:
-                return [RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")]
+                return [RespondOperation("Hmm. I didn't understand what you said." + self.get_reprompt())]
         else:
-            return [RespondOperation("Hmm. I didn't understand what you said. Could you say it another way?")]
+            return [RespondOperation("Hmm. I didn't understand what you said." + self.get_reprompt())]
 
     def party_size(self, args):
-        if args[0] == "unknown":
-            x_binding = args[1]
-            if isinstance(x_binding.value[0], Measurement):
-                return self.handle_world_event(["user_wants", json.dumps(
-                    {"structure": "noun_for", "noun": "table1", "for_count": x_binding.value[0].count})])
-            else:
-                return [RespondOperation("Sorry, I didn't get that. How many in your party?")]
+
+        x = args[1]
+        if isinstance(x, Measurement):
+            self.sys["responseState"] = "something_to_eat"
+            return self.handle_world_event(["user_wants", json.dumps(
+                {"structure": "noun_for", "noun": "table1", "for_count": x.count})])
+        else:
+            return [RespondOperation("Sorry, I didn't catch that. How many in your party?")]
     def handle_world_event(self, args):
-        # if self.sys["responseState"] == "anticipate_party_size":
+        if self.sys["responseState"] == "anticipate_party_size":
+            return self.party_size(args)
         if args[0] == "user_wants":
             return self.user_wants(args[1])
         elif args[0] == "user_wants_to_see":
@@ -316,6 +346,10 @@ class AddBillOp(object):
         assert (self.toAdd in prices)
         state.mutate_add_bill(prices[self.toAdd])
 
+class ResetOrderAndBillOp(object):
+    def apply_to(self, state):
+        state.mutate_reset_bill()
+        state.mutate_reset_order()
 
 class ResponseStateOp(object):
     def __init__(self, item):
@@ -443,7 +477,7 @@ def _credit_n_1(state, x_bind):
 
 @Predication(vocabulary, names=["unknown"])
 def unknown(state, e_binding, x_binding):
-    yield state.record_operations(state.handle_world_event(["unknown", x_binding]))
+    yield state.record_operations(state.handle_world_event(["unknown", x_binding.value[0]]))
 
 
 @Predication(vocabulary, names=["unknown"])
@@ -745,7 +779,7 @@ class RequestVerbTransitive:
         if self.lemma == "have":
             if state.get_binding(x_actor_binding.variable.name).value[0] == "computer":
                 if state.get_binding(x_object_binding.variable.name).value is None:
-                    yield state.record_operations(state.handle_world_event(["user_wants", "menu1"]))
+                    yield state.set_x(x_object_binding.variable.name, ("dummy_variable",)).record_operations(state.handle_world_event(["user_wants", "menu1"]))
                     return
 
         def bound(x_actor, x_object):
@@ -1044,7 +1078,10 @@ def reset():
     initial_state = initial_state.add_rel("food", "specializes", "thing")
     initial_state = initial_state.add_rel("pizza", "specializes", "food")
     initial_state = initial_state.add_rel("meat", "specializes", "food")
+    initial_state = initial_state.add_rel("veggie", "specializes", "food")
     initial_state = initial_state.add_rel("steak", "specializes", "meat")
+    initial_state = initial_state.add_rel("chicken", "specializes", "meat")
+    initial_state = initial_state.add_rel("salmon", "specializes", "meat")
 
     initial_state = initial_state.add_rel("salad1", "instanceOf", "salad")
     initial_state = initial_state.add_rel("table1", "instanceOf", "table")
@@ -1054,9 +1091,13 @@ def reset():
     initial_state = initial_state.add_rel("menu1", "instanceOf", "menu")
     initial_state = initial_state.add_rel("pizza1", "instanceOf", "pizza")
     initial_state = initial_state.add_rel("steak1", "instanceOf", "steak")
+    initial_state = initial_state.add_rel("chicken1", "instanceOf", "chicken")
+    initial_state = initial_state.add_rel("salmon1", "instanceOf", "salmon")
 
     initial_state = initial_state.add_rel("soup", "specializes", "special")
     initial_state = initial_state.add_rel("salad", "specializes", "special")
+    initial_state = initial_state.add_rel("soup", "specializes", "veggie")
+    initial_state = initial_state.add_rel("salad", "specializes", "veggie")
     initial_state = initial_state.add_rel("computer", "have", "salad1")
     initial_state = initial_state.add_rel("computer", "have", "soup1")
     initial_state = initial_state.add_rel("computer", "have", "steak1")
@@ -1065,6 +1106,8 @@ def reset():
     initial_state = initial_state.add_rel("user", "have", "bill1")
 
     initial_state = initial_state.add_rel("steak1", "on", "menu1")
+    initial_state = initial_state.add_rel("chicken1", "on", "menu1")
+    initial_state = initial_state.add_rel("salmon1", "on", "menu1")
 
     initial_state = initial_state.add_rel("bill", "specializes", "thing")
     initial_state = initial_state.add_rel("check", "specializes", "thing")
