@@ -11,14 +11,14 @@
         },
         {
             "Command": "files are large",
-            "Expected": "file is not large",
+            "Expected": "There are less than 2 large file",
             "Tree": "udef_q(x3,_file_n_of(x3,i8),_large_a_1(e2,x3))",
             "Enabled": true,
             "ID": "331f555e-dd75-4836-88b3-6cde597eaebd"
         },
         {
             "Command": "which files are large",
-            "Expected": "a file is not large",
+            "Expected": "There are less than 2 large file",
             "Tree": "_which_q(x3,_file_n_of(x3,i8),_large_a_1(e2,x3))",
             "Enabled": true,
             "ID": "aa892111-3d4a-477e-8ae2-858d95d9074c"
@@ -123,7 +123,7 @@
         },
         {
             "Command": "1 file is 20 megabytes",
-            "Expected": "1 file is not 20 megabyte",
+            "Expected": "There is more than 1 file that is 20 megabyte",
             "Tree": "udef_q(x11,[_megabyte_n_1(x11,u18), card(20,e17,x11)],udef_q(x3,[_file_n_of(x3,i10), card(1,e9,x3)],loc_nonsp(e2,x3,x11)))",
             "Enabled": true,
             "ID": "883c4f0e-5d43-4ab5-86a8-7aa2ebc1a46d"
@@ -145,7 +145,7 @@
         {
             "Command": "together, which files are 20 mb",
             "Comments": "Correctly returns single files in dist mode because it treats 'mb' as the collective that together is forcing",
-            "Expected": "(File(name=/Desktop/the yearly budget.txt, size=10000000), File(name=/Desktop/blue, size=10000000))(File(name=/Desktop/bigfile.txt, size=20000000),)(File(name=/Desktop/bigfile2.txt, size=20000000),)",
+            "Expected": "(File(name=/Desktop/bigfile.txt, size=20000000),)(File(name=/Desktop/bigfile2.txt, size=20000000),)(File(name=/Desktop/the yearly budget.txt, size=10000000), File(name=/Desktop/blue, size=10000000))",
             "Tree": "udef_q(x11,[_megabyte_n_1(x11,u18), card(20,e17,x11)],_which_q(x6,_file_n_of(x6,i10),[_together_p(e4,e2), loc_nonsp(e2,x6,x11)]))",
             "Enabled": true,
             "ID": "d4a1b97d-9fcf-448e-a429-4356eb3e171d"
@@ -208,7 +208,7 @@
         },
         {
             "Command": "the files are large",
-            "Expected": "That isn't true for all the file",
+            "Expected": "That isn't true for all the files",
             "Tree": "_the_q(x3,_file_n_of(x3,i8),_large_a_1(e2,x3))",
             "Enabled": true,
             "ID": "d0738761-c3cc-45ab-a754-29b4cc871fc8"
@@ -229,14 +229,14 @@
         },
         {
             "Command": "the 3 files are large",
-            "Expected": "There are more than the 3 file",
+            "Expected": "There are more than the three files",
             "Tree": "_the_q(x3,[_file_n_of(x3,i10), card(3,e9,x3)],_large_a_1(e2,x3))",
             "Enabled": true,
             "ID": "d5ea50ee-c182-4db4-b2d8-83e1cf19b254"
         },
         {
             "Command": "the file is large",
-            "Expected": "There is more than 1 the file",
+            "Expected": "There is more than 1 file",
             "Tree": "_the_q(x3,_file_n_of(x3,i8),_large_a_1(e2,x3))",
             "Enabled": true,
             "ID": "02284161-0af3-45de-b4ba-8b6fbf67012a"
@@ -348,7 +348,7 @@
         },
         {
             "Command": "1 file is in a folder together",
-            "Expected": "1 file is not in a folder together",
+            "Expected": "There is more than a folder together",
             "Tree": "_a_q(x11,[_folder_n_of(x11,i16), _together_p(e17,x11)],udef_q(x3,[_file_n_of(x3,i10), card(1,e9,x3)],_in_p_loc(e2,x3,x11)))",
             "Enabled": true,
             "ID": "61c8885b-063a-460e-9b8a-a25c01f31df4"
@@ -404,7 +404,7 @@
         },
         {
             "Command": "4 files are in a folder",
-            "Expected": "4 file is not in a folder",
+            "Expected": "There are less than 4 4 file in a folder",
             "Tree": "_a_q(x11,_folder_n_of(x11,i16),udef_q(x3,[_file_n_of(x3,i10), card(4,e9,x3)],_in_p_loc(e2,x3,x11)))",
             "Enabled": true,
             "ID": "526a5445-c826-40cc-8fbc-33a574b36461"
@@ -439,14 +439,14 @@
         },
         {
             "Command": "the 2 files are in 3 folders",
-            "Expected": "There is more than 2 the 2 file",
+            "Expected": "There are more than 2 2 file",
             "Tree": "udef_q(x11,[_folder_n_of(x11,i18), card(3,e17,x11)],_the_q(x3,[_file_n_of(x3,i10), card(2,e9,x3)],_in_p_loc(e2,x3,x11)))",
             "Enabled": true,
             "ID": "1a81e3da-b22d-4a11-b61e-4eb21ec94b34"
         },
         {
             "Command": "which 2 files in the folder are large?",
-            "Expected": "There is more than one the folder",
+            "Expected": "There is more than one folder",
             "Tree": "_the_q(x12,_folder_n_of(x12,i17),_which_q(x3,[_file_n_of(x3,i10), _in_p_loc(e11,x3,x12), card(2,e9,x3)],_large_a_1(e2,x3)))",
             "Enabled": true,
             "ID": "34457434-0312-48e3-a93b-f2badc6fb7d4"
@@ -467,7 +467,7 @@
         },
         {
             "Command": "only 2 files are large",
-            "Expected": "There is more than 2 2 large file",
+            "Expected": "There are more than 2 2 large file",
             "Tree": "udef_q(x3,[_file_n_of(x3,i11), _only_x_deg(e5,e6), card(2,e6,x3)],_large_a_1(e2,x3))",
             "Enabled": true,
             "ID": "29ebc2f2-3fe3-4e9e-b62b-58050d28a0ad"
@@ -488,17 +488,10 @@
         },
         {
             "Command": "which files are large?",
-            "Expected": "a file is not large",
+            "Expected": "files are not large",
             "Tree": "_which_q(x3,_file_n_of(x3,i8),_large_a_1(e2,x3))",
             "Enabled": true,
             "ID": "15e2683a-1847-462d-97b8-7e8ef2bb02fc"
-        },
-        {
-            "Command": "which files are large?",
-            "Expected": "a file is not large",
-            "Tree": "_which_q(x3,_file_n_of(x3,i8),_large_a_1(e2,x3))",
-            "Enabled": true,
-            "ID": "8697be74-253b-42b4-a333-8b5efd521359"
         },
         {
             "Command": "/new examples.Example34_reset",

@@ -7,7 +7,7 @@ from perplexity.generation import english_for_delphin_variable
 from perplexity.messages import respond_to_mrs_tree
 from perplexity.plurals import all_plural_groups_stream, VariableCriteria, GlobalCriteria
 from perplexity.tree import TreePredication
-from perplexity.user_interface import UserInterface, no_error_priority
+from perplexity.user_interface import UserInterface
 from perplexity.utilities import ShowLogging
 
 
@@ -406,7 +406,7 @@ def Example18a_reset():
 
 def Example18():
     # ShowLogging("Pipeline")
-    user_interface = UserInterface(Example18_reset, vocabulary, generate_message, no_error_priority, respond_to_mrs_tree)
+    user_interface = UserInterface(Example18_reset, vocabulary, generate_message, error_priority, respond_to_mrs_tree)
 
     while True:
         user_interface.interact_once()
@@ -421,7 +421,7 @@ def Example19_reset():
 
 def Example19():
     # ShowLogging("Pipeline")
-    user_interface = UserInterface(Example19_reset, vocabulary, generate_message, no_error_priority, respond_to_mrs_tree)
+    user_interface = UserInterface(Example19_reset, vocabulary, generate_message, error_priority, respond_to_mrs_tree)
 
     while True:
         user_interface.interact_once()
@@ -876,6 +876,7 @@ if __name__ == '__main__':
     # ShowLogging("Generation")
     # ShowLogging("UserInterface")
     # ShowLogging("Pipeline")
+    # ShowLogging("SString")
     # ShowLogging("Determiners")
     # ShowLogging("SolutionGroups")
 
@@ -913,10 +914,10 @@ if __name__ == '__main__':
     # Example23()
     # Example24()
     # Example25()
-    # Example26()
+    Example26()
     # Example27()
     # Example28()
-    Example29()
+    # Example29()
     # Example30()
     # Example31()
     # Example32()
