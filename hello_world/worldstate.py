@@ -101,6 +101,12 @@ class AddBillOp(object):
         assert (self.toAdd in prices)
         state.mutate_add_bill(prices[self.toAdd])
 
+class SetKnownPriceOp(object):
+    def __init__(self, item):
+        self.toAdd = item
+
+    def apply_to(self, state):
+        state.mutate_remove_unknown_price(self.toAdd)
 
 class ResetOrderAndBillOp(object):
     def apply_to(self, state):
@@ -130,6 +136,10 @@ class WorldState(State):
         for i in self.rel["valueOf"]:
             if i[1] == "bill1":
                 return i[0]
+
+    def mutate_remove_unknown_price(self, toRemove):
+        if (toRemove,"user") in self.rel["priceUnknownTo"]:
+            self.rel["priceUnknownTo"].remove((toRemove, "user"))
 
     def add_rel(self, first, relation_name, second):
         new_relation = copy.deepcopy(self.rel)
@@ -234,6 +244,9 @@ class WorldState(State):
                                 return [RespondOperation(
                                     "Sorry, you got the last one of those. We don't have any more. Can I get you something else?"),
                                     ResponseStateOp("anything_else")]
+                        if (wanted,"user") in self.rel["priceUnknownTo"]:
+                            return [RespondOperation("Son: Wait, let's not order that before we know how much it costs." + self.get_reprompt())]
+
                         assert(wanted in self.sys["prices"])
                         if self.sys["prices"][wanted] + self.bill_total() > 15:
                             return [RespondOperation("Son: Wait, we already spent $" + str(self.bill_total()) + " so if we get that, we won't be able to pay for it with $15." + self.get_reprompt())]

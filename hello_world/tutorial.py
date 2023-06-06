@@ -298,6 +298,13 @@ def _want_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
             if not x_obj is None:
                 yield success_state.record_operations(state.handle_world_event(["user_wants", x_obj]))
 
+# @Predication(vocabulary, names=["solution_group__want_v_1"], handles=[("request_type", EventOption.optional)])
+# def want_group(state_list, e_introduced_binding_list, x_actor_binding_list, x_what_binding_list):
+#     if len(state_list) == 1:
+#         yield _want_v_1(state_list[0], e_introduced_binding_list[0], x_actor_binding_list[0], x_what_binding_list[0])
+#     else:
+#         yield None
+
 
 @Predication(vocabulary, names=["_check_v_1"])
 def _check_v_1(state, e_introduced_binding, x_actor_binding, i_object_binding):
@@ -684,7 +691,8 @@ def _be_v_id(state, e_introduced_binding, x_actor_binding, x_object_binding):
                 if x_obj["relevant_var_value"] == "to_determine":
                     if x_act in success_state.sys["prices"].keys():
                         yield success_state.set_x(x_obj["relevant_var_name"], (
-                            str(x_act) + ": " + str(success_state.sys["prices"][x_act]) + " dollars",))
+                            str(x_act) + ": " + str(success_state.sys["prices"][x_act]) + " dollars",)).record_operations([SetKnownPriceOp(x_act)])
+
                     else:
                         yield success_state.record_operations([RespondOperation("Haha, it's not for sale.")])
 
@@ -802,10 +810,10 @@ def reset():
     initial_state = initial_state.add_rel("chicken", "specializes", "meat")
     initial_state = initial_state.add_rel("salmon", "specializes", "meat")
 
-    initial_state = initial_state.add_rel("salad1", "instanceOf", "salad")
     initial_state = initial_state.add_rel("table1", "instanceOf", "table")
     initial_state = initial_state.add_rel("table1", "maxCap", 4)
 
+    initial_state = initial_state.add_rel("salad1", "instanceOf", "salad")
     initial_state = initial_state.add_rel("soup1", "instanceOf", "soup")
     initial_state = initial_state.add_rel("menu1", "instanceOf", "menu")
     initial_state = initial_state.add_rel("pizza1", "instanceOf", "pizza")
@@ -839,6 +847,11 @@ def reset():
 
     initial_state = initial_state.add_rel("chicken1", "isAdj", "roasted")
     initial_state = initial_state.add_rel("salmon1", "isAdj", "grilled")
+
+    initial_state = initial_state.add_rel("soup1", "priceUnknownTo", "user")
+    initial_state = initial_state.add_rel("salad1", "priceUnknownTo", "user")
+
+
 
     return initial_state
 
