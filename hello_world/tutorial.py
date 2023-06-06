@@ -183,7 +183,7 @@ class WorldState(State):
             if not self.user_ordered_veg():
                 return [RespondOperation(
                     "Son: Dad! I’m vegetarian, remember?? Why did you only order meat? \nMaybe they have some other dishes that aren’t on the menu… You tell the waiter to restart your order.\nWaiter: Ok, can I get you something else to eat?"),
-                        ResponseStateOp("something_to_eat"), ResetOrderAndBillOp()]
+                    ResponseStateOp("something_to_eat"), ResetOrderAndBillOp()]
 
             items = [i for (x, i) in self.rel["ordered"]]
             for i in self.rel["have"]:
@@ -507,7 +507,7 @@ def _no_a_1(state, i_binding, h_binding):
 
 def handles_noun(noun_lemma):
     return noun_lemma in ["special", "food", "menu", "soup", "salad", "table", "thing", "steak", "meat", "bill",
-                          "check", "dish"]
+                          "check", "dish", "salmon", "chicken"]
 
 
 # Simple example of using match_all that doesn't do anything except
@@ -551,6 +551,38 @@ def _vegetarian_a_1(state, e_introduced_binding, x_target_binding):
                                            criteria_bound,
                                            unbound_values)
 
+
+class PastParticiple:
+    def __init__(self, predicate_name_list, lemma):
+        self.predicate_name_list = predicate_name_list
+        self.lemma = lemma
+
+    def predicate_function(self, state, e_introduced_binding, i_binding, x_target_binding):
+        def bound(value):
+            if (value, self.lemma) in state.rel["isAdj"]:
+                return True
+            else:
+                report_error(["Not" + self.lemma])
+                return False
+
+        def unbound():
+            for i in state.rel["isAdj"]:
+                if i[1] == self.lemma:
+                    yield i[0]
+
+        yield from combinatorial_predication_1(state, x_target_binding,
+                                               bound,
+                                               unbound)
+
+grilled = PastParticiple(["_grill_v_1"],"grilled")
+roasted = PastParticiple(["_roast_v_cause"],"roasted")
+@Predication(vocabulary, names=grilled.predicate_name_list)
+def _grill_v_1(state, e_introduced_binding, i_binding, x_target_binding):
+    yield from grilled.predicate_function(state,e_introduced_binding,i_binding,x_target_binding)
+
+@Predication(vocabulary, names=roasted.predicate_name_list)
+def _grill_v_1(state, e_introduced_binding, i_binding, x_target_binding):
+    yield from roasted.predicate_function(state,e_introduced_binding,i_binding,x_target_binding)
 
 @Predication(vocabulary, names=("_on_p_loc",))
 def on_p_loc(state, e_introduced_binding, x_actor_binding, x_location_binding):
@@ -1103,16 +1135,17 @@ def reset():
     # return State([])
     # initial_state = WorldState({}, ["pizza", "computer", "salad", "soup", "steak", "ham", "meat","special"])
     initial_state = WorldState({},
-                               {"prices": {"salad1": 3, "steak1": 10, "soup1": 4}, "responseState": "initial"
+                               {"prices": {"salad1": 3, "steak1": 10, "soup1": 4, "salmon1": 12, "chicken1": 7},
+                                "responseState": "initial"
                                 })
-
-    initial_state = initial_state.add_rel("special", "specializes", "food")
     initial_state = initial_state.add_rel("table", "specializes", "thing")
     initial_state = initial_state.add_rel("menu", "specializes", "thing")
     initial_state = initial_state.add_rel("food", "specializes", "thing")
-    initial_state = initial_state.add_rel("dish", "specializes", "food")
 
-    initial_state = initial_state.add_rel("pizza", "specializes", "food")
+    initial_state = initial_state.add_rel("dish", "specializes", "food")
+    initial_state = initial_state.add_rel("special", "specializes", "dish")
+
+    initial_state = initial_state.add_rel("pizza", "specializes", "dish")
     initial_state = initial_state.add_rel("meat", "specializes", "dish")
     initial_state = initial_state.add_rel("veggie", "specializes", "dish")
     initial_state = initial_state.add_rel("steak", "specializes", "meat")
@@ -1152,8 +1185,10 @@ def reset():
     initial_state = initial_state.add_rel("bill1", "instanceOf", "bill")
     initial_state = initial_state.add_rel("bill1", "instanceOf", "check")
     initial_state = initial_state.add_rel(0, "valueOf", "bill1")
-
     initial_state = initial_state.add_rel("room", "contains", "user")
+
+    initial_state = initial_state.add_rel("chicken1", "isAdj", "roasted")
+    initial_state = initial_state.add_rel("salmon1", "isAdj", "grilled")
 
     return initial_state
 
