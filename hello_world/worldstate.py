@@ -18,6 +18,9 @@ def sort_of(state, thing, possible_type):
                 return True
     return False
 
+def reset_operations(state):
+    state.operations = []
+
 
 def all_instances(state, thing):
     proc = [thing]
@@ -289,6 +292,39 @@ class WorldState(State):
 
         return [RespondOperation("Sorry, I can't get that for you at the moment.")]
 
+    def user_wants_multiple(self, wanted_tuple):
+        foods = all_instances(self,"food")
+        for i in wanted_tuple:
+            if not i in foods:
+                return [RespondOperation("Hey, one thing at a time please..." + self.get_reprompt())]
+
+
+        userKnowsPrices = True
+        for i in wanted_tuple:
+            if (i, "user") in self.rel["priceUnknownTo"]:
+                return [RespondOperation("Son: Wait, let's not order anything before we know how much it costs." + self.get_reprompt())]
+        total_price = 0
+
+        for i in wanted_tuple:
+            total_price += self.sys["prices"][i]
+
+        if total_price + self.bill_total() > 15:
+            return [RespondOperation("Son: Wait, we've spent $" + str(self.bill_total()) + " and all that food costs $"+str(total_price)+" so if we get all that, we won't be able to pay for it with $15." + self.get_reprompt())]
+
+        for i in wanted_tuple:
+            if ("user", i) in self.rel["ordered"]:
+                return [RespondOperation("Sorry, you got the last "+i+" . We don't have any more." + self.get_reprompt())]
+        for i in wanted_tuple:
+            if wanted_tuple.count(i) > 1:
+                return [
+                    RespondOperation("Sorry, we only have one" + i + ". Please try again." + self.get_reprompt())]
+
+        toReturn = [RespondOperation("Excellent Choices! Can I get you anything else?" + self.get_reprompt()), ResponseStateOp("anything_else")]
+        for i in wanted_tuple:
+            toReturn += [AddRelOp(("user", "ordered", i)), AddBillOp(i)]
+        return toReturn
+
+
     def user_wants_to_see(self, wanted):
         if wanted == "menu1":
             return self.user_wants("menu1")
@@ -367,6 +403,8 @@ class WorldState(State):
             return self.user_wants(args[1])
         elif args[0] == "user_wants_to_see":
             return self.user_wants_to_see(args[1])
+        elif args[0] == "user_wants_multiple":
+            return self.user_wants_multiple(args[1])
         elif args[0] == "no":
             return self.no()
         elif args[0] == "yes":
