@@ -342,8 +342,9 @@ def want_group(state_list, e_introduced_binding_list, x_actor_binding_list, x_wh
                 allTables = False
             if not i.value[0][0] == "{":
                 allTableRequests = False
-            if not json.loads(i.value[0])["structure"] == "noun_for":
-                allTableRequests = False
+            else:
+                if not json.loads(i.value[0])["structure"] == "noun_for":
+                    allTableRequests = False
         if allTables:
             yield (state_list[0].record_operations(state_list[0].handle_world_event(["user_wants","table1"])),)
         if allTableRequests:
@@ -877,7 +878,7 @@ def reset():
 
     dish_types = ["soup","salad","bacon","salmon","steak","chicken"]
     for j in dish_types:
-        for i in range(20):
+        for i in range(3):
             initial_state = initial_state.add_rel(j+str(i), "instanceOf", j)
             initial_state = initial_state.add_rel("computer", "have", j+str(i))
             if j == "chicken":
