@@ -22,12 +22,14 @@ vocabulary = system_vocabulary()
 @Predication(vocabulary, names=["pron"])
 def pron(state, x_who_binding):
     person = int(state.get_binding("tree").value[0]["Variables"][x_who_binding.variable.name]["PERS"])
-    plurality = (state.get_binding("tree").value[0]["Variables"][x_who_binding.variable.name]["NUM"])
+    plurality = "unknown"
+    if "NUM" in state.get_binding("tree").value[0]["Variables"][x_who_binding.variable.name].keys():
+        plurality = (state.get_binding("tree").value[0]["Variables"][x_who_binding.variable.name]["NUM"])
 
     def bound_variable(value):
         if person == 2 and value == "computer":
             return True
-        if person == 1 and is_user(value):
+        if person == 1 and is_user_type(value):
             return True
         else:
             report_error(["dontKnowActor", x_who_binding.variable.name])
@@ -45,17 +47,15 @@ def pron(state, x_who_binding):
 
     yield from combinatorial_predication_1(state, x_who_binding, bound_variable, unbound_variable)
 
-def is_user(val):
+def is_user_type(val):
     if not isinstance(val,tuple):
-        return val == "user"
+        return val in ["user","son1"]
 
-    if ("user" in val):
+    else:
+        for i in val:
+            if val not in ["user","son1"]:
+                return False
         return True
-    for i in val:
-        if "user" in i:
-            return True
-
-    return(False)
 
 @Predication(vocabulary, names=["generic_entity"])
 def generic_entity(state, x_binding):
@@ -175,7 +175,7 @@ def _no_a_1(state, i_binding, h_binding):
 
 def handles_noun(noun_lemma):
     return noun_lemma in ["special", "food", "menu", "soup", "salad", "table", "thing", "steak", "meat", "bill",
-                          "check", "dish", "salmon", "chicken","bacon"]
+                          "check", "dish", "salmon", "chicken","bacon","son"]
 
 
 # Simple example of using match_all that doesn't do anything except
@@ -298,7 +298,7 @@ def on_p_loc(state, e_introduced_binding, x_actor_binding, x_location_binding):
 @Predication(vocabulary, names=["_want_v_1"], handles=[("request_type", EventOption.optional)])
 def _want_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
     def criteria_bound(x_actor, x_object):
-        if is_user(x_actor):
+        if is_user_type(x_actor):
             return True
         elif "want" in state.rel.keys():
             if (x_actor, x_object) in state.rel["want"]:
@@ -324,7 +324,7 @@ def _want_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
     for success_state in success_states:
         x_act = success_state.get_binding(x_actor_binding.variable.name).value[0]
         x_obj = success_state.get_binding(x_object_binding.variable.name).value[0]
-        if is_user(x_act):
+        if is_user_type(x_act):
             if not x_obj is None:
                 yield success_state.record_operations(state.handle_world_event(["user_wants", x_obj]))
 
@@ -334,8 +334,23 @@ def want_group(state_list, e_introduced_binding_list, x_actor_binding_list, x_wh
         yield None
     else:
         reset_operations(state_list[0])
-        unpack = lambda x: x.value[0]
-        yield (state_list[0].record_operations(state_list[0].handle_world_event(["user_wants_multiple",[unpack(j) for j in x_what_binding_list]])),)
+        allTables = True    # if multiple actors (son and user) want table, we don't need two tables
+        allTableRequests = True
+        tables = list(all_instances(state_list[0], "table"))
+        for i in x_what_binding_list:
+            if not i.value[0] in tables:
+                allTables = False
+            if not i.value[0][0] == "{":
+                allTableRequests = False
+            if not json.loads(i.value[0])["structure"] == "noun_for":
+                allTableRequests = False
+        if allTables:
+            yield (state_list[0].record_operations(state_list[0].handle_world_event(["user_wants","table1"])),)
+        if allTableRequests:
+            yield (state_list[0].record_operations(state_list[0].handle_world_event(["user_wants", x_what_binding_list[0].value[0]])),)
+        else:
+            unpack = lambda x: x.value[0]
+            yield (state_list[0].record_operations(state_list[0].handle_world_event(["user_wants_multiple",[unpack(j) for j in x_what_binding_list]])),)
 
 
 @Predication(vocabulary, names=["_check_v_1"])
@@ -357,7 +372,7 @@ def _check_v_1(state, e_introduced_binding, x_actor_binding, i_object_binding):
 @Predication(vocabulary, names=["_give_v_1", "_get_v_1"])
 def _give_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding, x_target_binding):
     if state.get_binding(x_actor_binding.variable.name).value[0] == "computer":
-        if is_user(state.get_binding(x_target_binding.variable.name).value[0]):
+        if is_user_type(state.get_binding(x_target_binding.variable.name).value[0]):
             if not state.get_binding(x_object_binding.variable.name).value[0] is None:
                 yield state.record_operations(
                     state.handle_world_event(
@@ -367,7 +382,7 @@ def _give_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding, x_
 @Predication(vocabulary, names=["_show_v_1"])
 def _show_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding, x_target_binding):
     if state.get_binding(x_actor_binding.variable.name).value[0] == "computer":
-        if is_user(state.get_binding(x_target_binding.variable.name).value[0]):
+        if is_user_type(state.get_binding(x_target_binding.variable.name).value[0]):
             if not state.get_binding(x_object_binding.variable.name).value[0] is None:
                 if state.get_binding(x_object_binding.variable.name).value[0] == "menu1":
                     yield state.record_operations(
@@ -377,7 +392,7 @@ def _show_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding, x_
 
 @Predication(vocabulary, names=["_seat_v_cause"])
 def _seat_v_cause(state, e_introduced_binding, x_actor_binding, x_object_binding):
-    if is_user(state.get_binding(x_object_binding.variable.name).value[0]):
+    if is_user_type(state.get_binding(x_object_binding.variable.name).value[0]):
         yield state.record_operations(state.handle_world_event(["user_wants", "table1"]))
 
 
@@ -455,7 +470,7 @@ def def_implicit_q(state, x_variable_binding, h_rstr, h_body):
 
 @Predication(vocabulary, names=["_like_v_1"], handles=[("request_type", EventOption.optional)])
 def _like_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
-    if is_user(state.get_binding(x_actor_binding.variable.name).value[0]):
+    if is_user_type(state.get_binding(x_actor_binding.variable.name).value[0]):
         if not state.get_binding(x_object_binding.variable.name).value[0] is None:
             yield state.record_operations(
                 state.handle_world_event(["user_wants", state.get_binding(x_object_binding.variable.name).value[0]]))
@@ -536,7 +551,7 @@ class RequestVerbTransitive:
                     return
 
         def bound(x_actor, x_object):
-            if (is_modal or is_future or is_request) and (is_user(x_actor)):
+            if (is_modal or is_future or is_request) and (is_user_type(x_actor)):
                 return True
             else:
                 if self.lemma in state.rel.keys():
@@ -581,7 +596,7 @@ class RequestVerbTransitive:
             x_act = success_state.get_binding(x_actor_binding.variable.name).value[0]
             x_obj = success_state.get_binding(x_object_binding.variable.name).value[0]
 
-            if (is_modal or is_future or is_request) and is_user(x_act):
+            if (is_modal or is_future or is_request) and is_user_type(x_act):
                 if x_obj is not None:
                     yield success_state.record_operations(success_state.handle_world_event([self.logic, x_obj, x_act]))
             else:
@@ -608,7 +623,7 @@ class RequestVerbIntransitive:
         is_future = (state.get_binding("tree").value[0]["Variables"][j]["TENSE"] == "fut")
 
         def bound(x_actor):
-            if (is_modal or is_future or is_request) and is_user(x_actor):
+            if (is_modal or is_future or is_request) and is_user_type(x_actor):
                 return True
             else:
                 if self.lemma in state.rel.keys():
@@ -631,7 +646,7 @@ class RequestVerbIntransitive:
         for success_state in combinatorial_predication_1(state, x_actor_binding, bound, unbound):
             x_act = success_state.get_binding(x_actor_binding.variable.name).value[0]
 
-            if (is_modal or is_future or is_request) and is_user(x_act):
+            if (is_modal or is_future or is_request) and is_user_type(x_act):
                 yield success_state.record_operations(success_state.handle_world_event([self.logic, x_act]))
             else:
                 yield success_state
@@ -721,9 +736,8 @@ def _be_v_id(state, e_introduced_binding, x_actor_binding, x_object_binding):
             x_obj = json.loads(x_obj)
             if x_obj["structure"] == "price_type":
                 if x_obj["relevant_var_value"] == "to_determine":
-                    if x_act in success_state.sys["prices"].keys():
-                        yield success_state.set_x(x_obj["relevant_var_name"], (
-                            str(x_act) + ": " + str(success_state.sys["prices"][x_act]) + " dollars",)).record_operations([SetKnownPriceOp(x_act)])
+                    if instance_of_what(state, x_act) in success_state.sys["prices"].keys():
+                        yield success_state.set_x(x_obj["relevant_var_name"], (str(instance_of_what(state, x_act)) + ": " + str(success_state.sys["prices"][instance_of_what(state, x_act)]) + " dollars",)).record_operations([SetKnownPriceOp(instance_of_what(state, x_act))])
 
                     else:
                         yield success_state.record_operations([RespondOperation("Haha, it's not for sale.")])
@@ -738,7 +752,7 @@ def _cost_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
             x_object = json.loads(x_object)
             if x_object["structure"] == "price_type":
                 if type(x_object["relevant_var_value"]) is int:
-                    if not (x_actor, x_object["relevant_var_value"]) in state.sys["prices"]:
+                    if not (instance_of_what(state, x_act), x_object["relevant_var_value"]) in state.sys["prices"]:
                         report_error("WrongPrice")
                         return False
             return True
@@ -748,8 +762,8 @@ def _cost_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
             yield None
 
     def get_object(x_actor):
-        if x_actor in state.sys["prices"].keys():
-            yield str(x_actor) + ": " + str(state.sys["prices"][x_actor]) + " dollars"
+        if instance_of_what(state, x_act) in state.sys["prices"].keys():
+            yield str(instance_of_what(state, x_act)) + ": " + str(state.sys["prices"][instance_of_what(state, x_act)]) + " dollars"
 
     for success_state in in_style_predication_2(state, x_actor_binding, x_object_binding, criteria_bound, get_actor,
                                                 get_object):
@@ -761,9 +775,9 @@ def _cost_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
             x_obj = json.loads(x_obj)
             if x_obj["structure"] == "price_type":
                 if x_obj["relevant_var_value"] == "to_determine":
-                    if x_act in success_state.sys["prices"].keys():
+                    if instance_of_what(state, x_act) in success_state.sys["prices"].keys():
                         yield success_state.set_x(x_obj["relevant_var_name"], (
-                            str(x_act) + ": " + str(success_state.sys["prices"][x_act]) + " dollars",))
+                            str(instance_of_what(state, x_act)) + ": " + str(success_state.sys["prices"][instance_of_what(state, x_act)]) + " dollars",))
                     else:
                         yield success_state.record_operations([RespondOperation("Haha, it's not for sale.")])
 
@@ -825,7 +839,7 @@ def reset():
     # return State([])
     # initial_state = WorldState({}, ["pizza", "computer", "salad", "soup", "steak", "ham", "meat","special"])
     initial_state = WorldState({},
-                                          {"prices": {"salad1": 3, "steak1": 10, "soup1": 4, "salmon1": 12, "chicken1": 7, "bacon1":2},
+                                          {"prices": {"salad": 3, "steak": 10, "soup": 4, "salmon": 12, "chicken": 7, "bacon":2},
                                 "responseState": "initial"
                                 })
     initial_state = initial_state.add_rel("table", "specializes", "thing")
@@ -849,27 +863,28 @@ def reset():
     initial_state = initial_state.add_rel("table1", "instanceOf", "table")
     initial_state = initial_state.add_rel("table1", "maxCap", 4)
 
-    initial_state = initial_state.add_rel("salad1", "instanceOf", "salad")
-    initial_state = initial_state.add_rel("soup1", "instanceOf", "soup")
+
+
+
     initial_state = initial_state.add_rel("menu1", "instanceOf", "menu")
-    initial_state = initial_state.add_rel("pizza1", "instanceOf", "pizza")
-    initial_state = initial_state.add_rel("steak1", "instanceOf", "steak")
-    initial_state = initial_state.add_rel("bacon1", "instanceOf", "bacon")
-    initial_state = initial_state.add_rel("chicken1", "instanceOf", "chicken")
-    initial_state = initial_state.add_rel("salmon1", "instanceOf", "salmon")
+
 
     initial_state = initial_state.add_rel("soup", "specializes", "special")
     initial_state = initial_state.add_rel("salad", "specializes", "special")
     initial_state = initial_state.add_rel("soup", "specializes", "veggie")
     initial_state = initial_state.add_rel("salad", "specializes", "veggie")
-    initial_state = initial_state.add_rel("computer", "have", "salad1")
-    initial_state = initial_state.add_rel("computer", "have", "soup1")
-    initial_state = initial_state.add_rel("computer", "have", "steak1")
-    initial_state = initial_state.add_rel("computer", "have", "chicken1")
-    initial_state = initial_state.add_rel("computer", "have", "salmon1")
-    initial_state = initial_state.add_rel("computer", "have", "table1")
-    initial_state = initial_state.add_rel("computer", "have", "menu1")
-    initial_state = initial_state.add_rel("computer", "have", "bacon1")
+
+
+    dish_types = ["soup","salad","bacon","salmon","steak","chicken"]
+    for j in dish_types:
+        for i in range(20):
+            initial_state = initial_state.add_rel(j+str(i), "instanceOf", j)
+            initial_state = initial_state.add_rel("computer", "have", j+str(i))
+            if j == "chicken":
+                initial_state = initial_state.add_rel(j+str(i), "isAdj", "roasted")
+            if j == "salmon":
+                initial_state = initial_state.add_rel(j+str(i), "isAdj", "grilled")
+
     initial_state = initial_state.add_rel("user", "have", "bill1")
 
     initial_state = initial_state.add_rel("steak1", "on", "menu1")
@@ -884,13 +899,11 @@ def reset():
     initial_state = initial_state.add_rel(0, "valueOf", "bill1")
     initial_state = initial_state.add_rel("room", "contains", "user")
 
-    initial_state = initial_state.add_rel("chicken1", "isAdj", "roasted")
-    initial_state = initial_state.add_rel("salmon1", "isAdj", "grilled")
-
-    initial_state = initial_state.add_rel("soup1", "priceUnknownTo", "user")
-    initial_state = initial_state.add_rel("salad1", "priceUnknownTo", "user")
+    initial_state = initial_state.add_rel("soup", "priceUnknownTo", "user")
+    initial_state = initial_state.add_rel("salad", "priceUnknownTo", "user")
 
     initial_state = initial_state.add_rel("son1", "instanceOf", "son")
+    initial_state = initial_state.add_rel("user", "have", "son1")
 
 
     return initial_state

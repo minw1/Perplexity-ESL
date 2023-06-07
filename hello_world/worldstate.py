@@ -18,6 +18,7 @@ def sort_of(state, thing, possible_type):
                 return True
     return False
 
+
 def reset_operations(state):
     state.operations = []
 
@@ -87,6 +88,12 @@ def all_ancestors(state, thing):
         proc_idx += 1
 
 
+def instance_of_what(state, thing):
+    for i in state.rel["instanceOf"]:
+        if i[0] == thing:
+            return i[1]
+
+
 class AddRelOp(object):
     def __init__(self, rel):
         self.toAdd = rel
@@ -100,9 +107,11 @@ class AddBillOp(object):
         self.toAdd = item
 
     def apply_to(self, state):
+        food_type = instance_of_what(state,self.toAdd)
         prices = state.sys["prices"]
-        assert (self.toAdd in prices)
-        state.mutate_add_bill(prices[self.toAdd])
+        assert (food_type in prices)
+        state.mutate_add_bill(prices[food_type])
+
 
 class SetKnownPriceOp(object):
     def __init__(self, item):
@@ -110,6 +119,7 @@ class SetKnownPriceOp(object):
 
     def apply_to(self, state):
         state.mutate_remove_unknown_price(self.toAdd)
+
 
 class ResetOrderAndBillOp(object):
     def apply_to(self, state):
@@ -135,13 +145,15 @@ class WorldState(State):
         for i in self.get_entities():
             yield i
 
+    # def instance_of(self, x, y):
+
     def bill_total(self):
         for i in self.rel["valueOf"]:
             if i[1] == "bill1":
                 return i[0]
 
     def mutate_remove_unknown_price(self, toRemove):
-        if (toRemove,"user") in self.rel["priceUnknownTo"]:
+        if (toRemove, "user") in self.rel["priceUnknownTo"]:
             self.rel["priceUnknownTo"].remove((toRemove, "user"))
 
     def add_rel(self, first, relation_name, second):
@@ -238,35 +250,37 @@ class WorldState(State):
                 else:
                     wanted = wanted_dict["noun"]
 
-        for i in all_instances_and_spec(self, "food"):
-            if i == wanted:
-                if "at" in self.rel.keys():
-                    if ("user", "table") in self.rel["at"]:
-                        if "ordered" in self.rel.keys():
-                            if ("user", wanted) in self.rel["ordered"]:
-                                return [RespondOperation(
-                                    "Sorry, you got the last one of those. We don't have any more. Can I get you something else?"),
-                                    ResponseStateOp("anything_else")]
-                        if (wanted,"user") in self.rel["priceUnknownTo"]:
-                            return [RespondOperation("Son: Wait, let's not order that before we know how much it costs." + self.get_reprompt())]
-
-                        assert(wanted in self.sys["prices"])
-                        if self.sys["prices"][wanted] + self.bill_total() > 15:
-                            return [RespondOperation("Son: Wait, we already spent $" + str(self.bill_total()) + " so if we get that, we won't be able to pay for it with $15." + self.get_reprompt())]
-
-                        return [RespondOperation("Excellent Choice! Can I get you anything else?"),
-                                AddRelOp(("user", "ordered", wanted)), AddBillOp(wanted),
+        if sort_of(self, wanted, "food"):
+            if "at" in self.rel.keys():
+                if ("user", "table") in self.rel["at"]:
+                    if "ordered" in self.rel.keys():
+                        if ("user", wanted) in self.rel["ordered"]:
+                            return [RespondOperation(
+                                "Sorry, you got the last one of those. We don't have any more. Can I get you something else?"),
                                 ResponseStateOp("anything_else")]
+                    if (instance_of_what(self, wanted), "user") in self.rel["priceUnknownTo"]:
+                        return [RespondOperation(
+                            "Son: Wait, let's not order that before we know how much it costs." + self.get_reprompt())]
 
-                return [RespondOperation("Sorry, you must be seated to order")]
+                    assert (instance_of_what(self,wanted) in self.sys["prices"])
+                    if self.sys["prices"][instance_of_what(self,wanted)] + self.bill_total() > 15:
+                        return [RespondOperation("Son: Wait, we already spent $" + str(
+                            self.bill_total()) + " so if we get that, we won't be able to pay for it with $15." + self.get_reprompt())]
 
-        for i in all_instances_and_spec(self, "table"):
+                    return [RespondOperation("Excellent Choice! Can I get you anything else?"),
+                            AddRelOp(("user", "ordered", wanted)), AddBillOp(wanted),
+                            ResponseStateOp("anything_else")]
+
+            return [RespondOperation("Sorry, you must be seated to order")]
+
+        for i in all_instances(self, "table"):
             if i == wanted:
                 if "at" in self.rel.keys():
                     if ("user", "table") in self.rel["at"]:
                         return [RespondOperation("Um... You're at a table." + self.get_reprompt())]
                 return [RespondOperation("How many in your party?"), ResponseStateOp("anticipate_party_size")]
-        for i in all_instances_and_spec(self, "menu"):
+
+        for i in all_instances(self, "menu"):
             if i == wanted:
                 if "at" in self.rel.keys():
                     if ("user", "table") in self.rel["at"]:
@@ -293,37 +307,44 @@ class WorldState(State):
         return [RespondOperation("Sorry, I can't get that for you at the moment.")]
 
     def user_wants_multiple(self, wanted_tuple):
-        foods = all_instances(self,"food")
-        for i in wanted_tuple:
-            if not i in foods:
-                return [RespondOperation("Hey, one thing at a time please..." + self.get_reprompt())]
+        foods = list(all_instances(self, "food"))
+        if len(wanted_tuple) == 1:
+            return self.user_wants(wanted_tuple[0])
 
+        for i in wanted_tuple:
+            if i not in foods:
+                return [RespondOperation("Hey, one thing at a time please..." + self.get_reprompt())]
 
         userKnowsPrices = True
         for i in wanted_tuple:
-            if (i, "user") in self.rel["priceUnknownTo"]:
-                return [RespondOperation("Son: Wait, let's not order anything before we know how much it costs." + self.get_reprompt())]
+            if (instance_of_what(self, i), "user") in self.rel["priceUnknownTo"]:
+                return [RespondOperation(
+                    "Son: Wait, let's not order anything before we know how much it costs." + self.get_reprompt())]
         total_price = 0
 
         for i in wanted_tuple:
-            total_price += self.sys["prices"][i]
+            total_price += self.sys["prices"][instance_of_what(self, i)]
 
         if total_price + self.bill_total() > 15:
-            return [RespondOperation("Son: Wait, we've spent $" + str(self.bill_total()) + " and all that food costs $"+str(total_price)+" so if we get all that, we won't be able to pay for it with $15." + self.get_reprompt())]
+            return [RespondOperation(
+                "Son: Wait, we've spent $" + str(self.bill_total()) + " and all that food costs $" + str(
+                    total_price) + " so if we get all that, we won't be able to pay for it with $15." + self.get_reprompt())]
 
         for i in wanted_tuple:
-            if ("user", i) in self.rel["ordered"]:
-                return [RespondOperation("Sorry, you got the last "+i+" . We don't have any more." + self.get_reprompt())]
+            if "ordered" in self.rel.keys():
+                if ("user", i) in self.rel["ordered"]:
+                    return [RespondOperation(
+                        "Sorry, you got the last " + i + " . We don't have any more." + self.get_reprompt())]
         for i in wanted_tuple:
             if wanted_tuple.count(i) > 1:
                 return [
                     RespondOperation("Sorry, we only have one" + i + ". Please try again." + self.get_reprompt())]
 
-        toReturn = [RespondOperation("Excellent Choices! Can I get you anything else?" + self.get_reprompt()), ResponseStateOp("anything_else")]
+        toReturn = [RespondOperation("Excellent Choices! Can I get you anything else?"),
+                    ResponseStateOp("anything_else")]
         for i in wanted_tuple:
             toReturn += [AddRelOp(("user", "ordered", i)), AddBillOp(i)]
         return toReturn
-
 
     def user_wants_to_see(self, wanted):
         if wanted == "menu1":
