@@ -659,6 +659,23 @@ def Example33():
         print()
 
 
+
+def Example33a_reset():
+    file_list = []
+    for folder_index in range(30):
+        file_list += [(True, f"/documents{folder_index}/file{folder_index}_{str(index)}.txt", {"size": 10000000}) for index in range(2)]
+    return FileSystemState(FileSystemMock(file_list,
+                                           "/documents"))
+
+
+def Example33a():
+    user_interface = UserInterface(Example33a_reset, vocabulary, generate_message, error_priority, respond_to_mrs_tree)
+
+    while True:
+        user_interface.interact_once()
+        print()
+
+
 def Example33_performance_test():
     user_interface = UserInterface(Example33_reset, vocabulary, generate_message, error_priority, respond_to_mrs_tree)
     user_interface.interact_once(force_input="which files are large?")
@@ -776,6 +793,25 @@ def Example40_reset():
 
 def Example40():
     user_interface = UserInterface(Example40_reset, vocabulary, generate_message, error_priority, respond_to_mrs_tree)
+
+    while True:
+        user_interface.interact_once()
+        print()
+
+
+
+def Example41_reset():
+    state = FileSystemState(FileSystemMock([(True, "/Desktop/file2.txt", {"size": 10000000}),
+                                           (True, "/Desktop/file3.txt", {"size": 10000}),
+                                           (True, "/documents/file4.txt", {"size": 10000000}),
+                                           (True, "/documents/file5.txt", {"size": 10000})],
+                                           "/Desktop"))
+
+    return state.set_x("test_solution_group", ("failAll", ))
+
+
+def Example41():
+    user_interface = UserInterface(Example41_reset, vocabulary, generate_message, error_priority, respond_to_mrs_tree)
 
     while True:
         user_interface.interact_once()
@@ -970,13 +1006,14 @@ if __name__ == '__main__':
     # Example24()
     # Example25()
     # Example26()
-    # Example27()
+    Example27()
     # Example28()
     # Example29()
     # Example30()
     # Example31()
     # Example32()
     # Example33()
+    # Example33a()
     # Example33_performance_test()
     # Example34()
     # Example35()
@@ -984,7 +1021,7 @@ if __name__ == '__main__':
     # Example37()
     # Example38()
     # Example39()
-    Example40()
+    # Example41()
     #
     # state_test()
 

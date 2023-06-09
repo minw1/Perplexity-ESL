@@ -1,4 +1,6 @@
 import enum
+
+from perplexity.execution import report_error
 from perplexity.set_utilities import count_set, all_nonempty_subsets_stream, product_stream
 from perplexity.tree import find_quantifier_from_variable
 from perplexity.utilities import is_plural_from_tree_info, parse_predication_name, is_plural
@@ -101,106 +103,68 @@ def all_plural_groups_stream(execution_context, solutions, var_criteria, variabl
     sets = []
     set_id += 1
 
-    # Track the unique solution groups that are returned so we
-    # can stop after we have 2 since that is all we need
-    unique_solution_groups = []
-
     # Track solution groups that work so far, but need to wait till the end
     # because they require a global criteria to be true
     pending_global_criteria = []
 
-    # Cases when we know we have failed early (early_fail_quit) and when we know we
-    # have a solution early (early_success_quit)
+    # When we know we have failed early (early_fail_quit)
     early_fail_quit = False
-    early_success_quit = False
     for combinatorial_solution in solutions:
-        if early_success_quit:
-            # If there are global constraints, we still need to gather the stats for all possible
-            # rstrs (for GlobalCriteria.all_rstr_meet_criteria) or successful rstrs (for GlobalCriteria.exactly)
-            # But we no longer need to check for coll/dist/cuml so it can be faster
-            if not check_only_global_criteria_all(execution_context, var_criteria, combinatorial_solution):
-                early_fail_quit = True
-                break
+        for next_solution in expand_combinatorial_variables(variable_metadata, combinatorial_solution):
+            new_sets = []
+            was_merged = False
+            for existing_set in sets + [initial_empty_set]:
+                if len(existing_set[1]) == 0 and was_merged:
+                    # Don't create a brand new set by merging with the final empty set if it was
+                    # already merged into something. Because: it is already being tracked.
+                    continue
 
-        else:
-            for next_solution in expand_combinatorial_variables(variable_metadata, combinatorial_solution):
-                # unique_solution_groups tracks solution groups that we have returned so far
-                if unique_solution_groups is not None and len(unique_solution_groups) == 2:
-                    if not variable_has_inf_max:
-                        # We are looking for a minimal solution if max != inf, so we can quit early
-                        early_success_quit = True
-                        break
+                new_set_stats_group = existing_set[0].copy()
+                merge, state = check_criteria_all(execution_context, var_criteria,  new_set_stats_group, next_solution)
 
-                    else:
-                        # Otherwise, just switch to only developing the two groups we need to return
-                        # By setting "sets" to be just those groups
-                        sets = unique_solution_groups
-                        unique_solution_groups = None
+                if state == CriteriaResult.fail_one:
+                    # Fail (doesn't meet criteria): don't add, don't yield
+                    continue
 
-                new_sets = []
-                was_merged = False
-                for existing_set in sets + [initial_empty_set]:
-                    if len(existing_set[1]) == 0 and was_merged:
-                        # Don't create a brand new set by merging with the final empty set if it was
-                        # already merged into something. Because: it is already being tracked.
-                        continue
-
-                    new_set_stats_group = existing_set[0].copy()
-                    merge, state = check_criteria_all(execution_context, var_criteria,  new_set_stats_group, next_solution)
-
-                    if state == CriteriaResult.fail_one:
-                        # Fail (doesn't meet criteria): don't add, don't yield
-                        continue
-
-                    elif state == CriteriaResult.fail_all:
-                        # A global criteria wasn't met so none will ever work
-                        # Still run global constraints to get a good error
-                        early_fail_quit = True
-                        break
-
-                    else:
-                        # Didn't fail, decide whether to merge into the existing set or create a new one
-                        # Merge if the only variables that got updated had a criteria with an upper bound of inf
-                        # since alternatives won't be used anyway
-                        if merge:
-                            was_merged = True
-                            new_set = existing_set
-
-                        else:
-                            new_set = [None, None, existing_set[2] + ":" + str(set_id)]
-                            set_id += 1
-                            new_sets.append(new_set)
-
-                        new_set[0] = new_set_stats_group
-                        new_set[1] = existing_set[1] + [next_solution]
-
-                        if state == CriteriaResult.meets:
-                            yield new_set[1], new_set[2]
-
-                        elif state == CriteriaResult.meets_pending_global:
-                            pending_global_criteria.append([new_set[1], new_set[2]])
-
-                        elif state == CriteriaResult.contender:
-                            # Not yet a solution, don't track it as one
-                            pass
-
-                        # See if this is a new unique solution
-                        if (state == CriteriaResult.meets or state == CriteriaResult.meets_pending_global) and \
-                                unique_solution_groups is not None:
-                            # We still haven't transitioned to tracking only the two solution groups
-                            # So: add this one if it just transitioned from contender to solution group (to ensure we don't add it twice)
-                            # If we haven't yet found 2
-                            if existing_set[0].group_state not in [CriteriaResult.meets, CriteriaResult.meets_pending_global] and \
-                                    len(unique_solution_groups) < 2:
-                                unique_solution_groups.append(new_set)
-
-                sets += new_sets
-
-                if early_fail_quit:
+                elif state == CriteriaResult.fail_all:
+                    # A global criteria wasn't met so none will ever work
+                    # Still run global constraints to get a good error
+                    early_fail_quit = True
                     break
+
+                else:
+                    # Didn't fail, decide whether to merge into the existing set or create a new one
+                    # Merge if the only variables that got updated had a criteria with an upper bound of inf
+                    # since alternatives won't be used anyway
+                    if merge:
+                        was_merged = True
+                        new_set = existing_set
+
+                    else:
+                        new_set = [None, None, existing_set[2] + ":" + str(set_id)]
+                        set_id += 1
+                        new_sets.append(new_set)
+
+                    new_set[0] = new_set_stats_group
+                    new_set[1] = existing_set[1] + [next_solution]
+
+                    if state == CriteriaResult.meets:
+                        yield new_set[1], new_set[2]
+
+                    elif state == CriteriaResult.meets_pending_global:
+                        pending_global_criteria.append([new_set[1], new_set[2]])
+
+                    elif state == CriteriaResult.contender:
+                        # Not yet a solution, don't track it as one
+                        pass
+
+            sets += new_sets
 
             if early_fail_quit:
                 break
+
+        if early_fail_quit:
+            break
 
     # If early_fail_quit is True, the error should already be set
     if not early_fail_quit and has_global_constraint:
@@ -262,6 +226,11 @@ class StatsGroup(object):
 
         return new_group
 
+    # Return the index (or None) for the neg() predication that
+    # negated this variable
+    def negated_index_for_variable(self, negated_variable_name):
+        return None
+
 
 class VariableStats(object):
     def __init__(self, variable_name, whole_group_unique_individuals=None, whole_group_unique_values=None, distributive_state=None, collective_state=None, cumulative_state=None):
@@ -321,7 +290,11 @@ class VariableStats(object):
         else:
             prev_unique_value_count = len(self.prev_variable_stats.whole_group_unique_values)
 
-        if prev_unique_value_count is not None and prev_unique_value_count > 1:
+        only_collective = prev_unique_value_count is None or prev_unique_value_count == 1
+        if not only_collective:
+            # Collective fails from here on out because prev_unique_value_count > 1
+            self.collective_state = CriteriaResult.fail_one
+
             # Cumulative
             if self.cumulative_state != CriteriaResult.fail_one:
                 self.cumulative_state = variable_criteria.meets_criteria(execution_context, self.whole_group_unique_individuals)
@@ -336,36 +309,21 @@ class VariableStats(object):
                     if self.distributive_state == CriteriaResult.fail_one:
                         break
 
-        if prev_unique_value_count is None or prev_unique_value_count == 1:
+        else:
             if self.collective_state != CriteriaResult.fail_one:
                 # Collective
                 self.collective_state = variable_criteria.meets_criteria(execution_context, self.whole_group_unique_individuals)
 
-        else:
-            self.collective_state = CriteriaResult.fail_one
-
         # Now figure out what to return
-        if self.collective_state == CriteriaResult.fail_all or \
-                self.distributive_state == CriteriaResult.fail_all or \
-                self.cumulative_state == CriteriaResult.fail_all:
-            self.current_state = CriteriaResult.fail_all
+        self.current_state = None
+        for test_state in [CriteriaResult.fail_all, CriteriaResult.meets_pending_global, CriteriaResult.meets, CriteriaResult.contender]:
+            if (only_collective and self.collective_state == test_state) or \
+                    (not only_collective and (self.distributive_state == test_state or \
+                    self.cumulative_state == test_state)):
+                self.current_state = test_state
+                break
 
-        elif self.collective_state == CriteriaResult.meets_pending_global or \
-                self.distributive_state == CriteriaResult.meets_pending_global or \
-                self.cumulative_state == CriteriaResult.meets_pending_global:
-            self.current_state = CriteriaResult.meets_pending_global
-
-        elif self.collective_state == CriteriaResult.meets or \
-                self.distributive_state == CriteriaResult.meets or \
-                self.cumulative_state == CriteriaResult.meets:
-            self.current_state = CriteriaResult.meets
-
-        elif self.collective_state == CriteriaResult.contender or \
-                self.distributive_state == CriteriaResult.contender or \
-                self.cumulative_state == CriteriaResult.contender:
-            self.current_state = CriteriaResult.contender
-
-        else:
+        if self.current_state is None:
             self.current_state = CriteriaResult.fail_one
 
         return new_individuals, self.current_state
@@ -389,7 +347,6 @@ class VariableStats(object):
 #       collective if len(prev_unique_values) == 1 and len(unique_values) meets criteria
 #       distributive if len(prev_unique_values) > 1 and for each prev_unique_value: len(unique_values) meets criteria
 #       cumulative if len(prev_unique_values) > 1 and len(unique_values) meets criteria
-#
 def check_criteria_all(execution_context, var_criteria, new_set_stats_group, new_solution):
     current_set_state = CriteriaResult.meets
     merge = True
@@ -397,11 +354,52 @@ def check_criteria_all(execution_context, var_criteria, new_set_stats_group, new
         # Get the existing statistics for the variable at this index
         # and the criteria for the variable as well
         variable_stats = new_set_stats_group.variable_stats[index]
-        criteria = var_criteria[index]
 
-        # See what the CriteriaResult is for the whole solution group plus the new solution
-        # but only for this particular variable
-        new_individuals, state = variable_stats.add_solution(execution_context, criteria, new_solution)
+        state = None
+        negated_predications_binding = new_solution.get_binding("negated_predications")
+        if negated_predications_binding.value is not None:
+            # There are negated predications in this tree,
+            # see if this variable is scoped by one of them
+            negated_index = None
+            scopes_all = False
+            for negated_predication_item in negated_predications_binding.value.items():
+                if variable_stats.variable_name in negated_predication_item[1].scoped_variables:
+                    negated_index = negated_predication_item[0]
+                    scopes_all = negated_predication_item[1].scopes_all
+                    break
+
+            if negated_index is not None:
+                # This variable is under a neg() predication at negated_index,
+                # see if it was a negative success
+                negated_success_binding = new_solution.get_binding("negated_successes")
+                if negated_success_binding.value is not None:
+                    # There were negated_successes in the tree somewhere
+                    if negated_index in negated_success_binding.value:
+                        # The neg() scoping this variable had a negative success:
+                        # the h_scopal for the neg() is false, thus it is true
+                        # If all variables are scoped by this neg()
+                        # then it is guaranteed to be a success since neg() applies to the entire tree
+                        if scopes_all:
+                            state = CriteriaResult.meets
+                        else:
+                            state = CriteriaResult.contender
+                        # TODO: should new_individuals be getting updated?
+                        new_individuals = None
+
+                if negated_success_binding.value is None or negated_index not in negated_success_binding.value:
+                    # This variable is under a neg() predication, and it isn't a negative success
+                    # So that means it succeeded, which in turn means it is a negative
+                    # failure (i.e. the tree is true, so it is false)
+                    state = CriteriaResult.fail_one
+                    # Because we are failing due to negation, it is OK to force that as the real error
+                    report_error(["notClause"], force=True)
+
+        if state is None:
+            criteria = var_criteria[index]
+
+            # See what the CriteriaResult is for the whole solution group plus the new solution
+            # but only for this particular variable
+            new_individuals, state = variable_stats.add_solution(execution_context, criteria, new_solution)
 
         # Decide the new state of the entire solution group, so far, based on the previous variable
         # state and the new state
@@ -432,6 +430,13 @@ def check_only_global_criteria_all(execution_context, var_criteria, new_solution
             False
 
     return True
+
+
+class NegatedPredication(object):
+    def __init__(self, predication, scoped_variables, scopes_all):
+        self.predication = predication
+        self.scoped_variables = scoped_variables
+        self.scopes_all = scopes_all
 
 
 # if global_criteria is not set, then this only guarantees that the min and max size will be retained

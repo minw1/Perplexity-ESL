@@ -1,17 +1,28 @@
+- which files are not in 2 folders
+  - example27: /runparse 0,1: which files are not in 2 folders
+    - Could mean "not in any 2 folders"
+    - Could mean "get the folders it is in, make sure it isn't > 1"
+      - Requires not(folder(), card(2))
+      - Run the fragment as an MRS with the state pre-loaded with variable values
+    - Interpreted as "Find 2 folders that files are not in, then return those files"
+      - Obviously No files ...
+
 - Need to be able to run code on the solution group
   - not() is going to require special processing
-  - 
+
+- Bug: It looks like collective only checks for one value???
+    - whole_group_unique_individuals.update(binding_value) never adds a set of individuals to the set
 - Build a backend to use for ESL Scenarios
 - make fallback generation more robust
   - at least getting form of words right
 - Test plurals:
-  - Implement negative
-    - No files ...
-    - files are not large
-    - which files are not in 2 folders
-      - requires "not" to run in phase 2
   - each:
     - the folders have 1 file each
+- 
+- Dealing with all the duplication of items and combinatorics seems like a waste. Seems like there must be a better way that involves symbolics. For example
+  - We want a steak
+  - If there are 10 steaks, then want_v_1 will get called 20 times (10 for each person). Whereas if "steak" was symbolic it would only get called twice
+
 
 - NEED TO UPDATE DOCS FOR VERBS TO MAKE ALL THIS CLEAR:
   - "I want ham" is a proposition that we want to interpret as a command
@@ -23,7 +34,7 @@
       - If: it is a proposition and IF pron(I) and IF arguments are bound: There is something concrete they want, next determine how to deal with it
           - in the doorway: "I want a table" -> give me a table, "I want a place to sit", "I want to eat " (different want_v), I want a burger" -> "Do you want take-out?"
 
-
+- Switch the code to use the term "scope-resolved MRS" instead of "well-formed tree" or "scope-resolved tree"
 - 3 files are in a folder together -> There is more than a folder together
   - "together_p" is applied to "a folder" and returns an error that there is more than 1 folder "together"
     - together requires sets of more than one be generated, and "a_q" means exactly one

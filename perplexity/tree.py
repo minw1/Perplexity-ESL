@@ -9,7 +9,7 @@ from delphin import ace
 from delphin.codecs.simplemrs import encode
 import perplexity.execution
 from perplexity.tree_algorithm_zinda2020 import valid_hole_assignments
-from perplexity.utilities import parse_predication_name
+from perplexity.utilities import parse_predication_name, sentence_force
 from perplexity.vocabulary import ValueSize
 
 
@@ -64,13 +64,18 @@ class MrsParser(object):
         # Note that a single label could represent multiple predications
         # in conjunction so we need a list for each label
         mrs_predication_dict = {}
+        required_root_label = None
         for predication in mrs.predications:
+            # which_q should always have widest scope for questions
+            # See: https://delphinqa.ling.washington.edu/t/understanding-neg-e-h-which-rocks-are-not-blue/860
+            if predication.predicate in ["which_q", "_which_q"] and sentence_force(mrs.variables) in ["prop-or-ques", "ques"]:
+                required_root_label = predication.label
             if predication.label not in mrs_predication_dict.keys():
                 mrs_predication_dict[predication.label] = []
             mrs_predication_dict[predication.label].append(predication)
 
         # Iteratively return well-formed trees from the MRS
-        for holes_assignments in valid_hole_assignments(mrs, self.max_holes):
+        for holes_assignments in valid_hole_assignments(mrs, self.max_holes, required_root_label):
             # valid_hole_assignments can return None if the grammar returns something
             # that doesn't have the same number of holes and floaters (which is a grammar bug)
             if holes_assignments is not None:
@@ -148,12 +153,15 @@ class TreePredication(object):
         self.arg_types.append(self.type_from_argument(name, value))
 
     def x_args(self):
-        x_args = []
-        for arg_index in range(0, len(self.args)):
-            if self.arg_types[arg_index] == "x":
-                x_args.append(self.args[arg_index])
+        return self.args_with_types(["x"])
 
-        return x_args
+    def args_with_types(self, types):
+        found_args = []
+        for arg_index in range(0, len(self.args)):
+            if self.arg_types[arg_index] in types:
+                found_args.append(self.args[arg_index])
+
+        return found_args
 
     def scopal_arg_indices(self):
         for arg_index in range(0, len(self.args)):
@@ -222,13 +230,27 @@ def tree_from_assignments(hole_label, assignments, predication_dict, mrs, curren
         return sort_conjunctions(conjunction_list)
 
 
+# yield all the variables that are consumed in the arg_value
+# arg_value can be a predication, conjunction or tree
+def consumed_variables(arg_value):
+    if isinstance(arg_value, str):
+        yield arg_value
+    elif isinstance(arg_value, list):
+        for item in list:
+            yield from consumed_variables(item)
+    elif isinstance(arg_value, TreePredication):
+        for item in arg_value.args:
+            yield from consumed_variables(item)
+    else:
+        assert False
+
 # Make sure a list of predications (like for a conjunction/"logical and")
 #   is sorted such that predications that *modify* e variables
 #   come before the *introducer* of them
 # and that predications that *modify* x variables
 #   come *after* the introducer of them
 def sort_conjunctions(predication_list):
-    # Build a dict with keys of introduced e args and values of the
+    # Build a dict with keys of introduced e and x args and values of the
     #   index of the predication that introduced them
     introduced_dict = {}
     for predication_index in range(0, len(predication_list)):
@@ -239,14 +261,14 @@ def sort_conjunctions(predication_list):
     # Build the graph that represents the dependencies
     topological_sort = Cormen2001(len(predication_list))
     for predication_index in range(0, len(predication_list)):
-        for arg_value in predication_list[predication_index].args:
-            if isinstance(arg_value, str) and arg_value in introduced_dict:
-                if predication_index != introduced_dict[arg_value]:
+        for consumed_variable in consumed_variables(predication_list[predication_index]):
+            if consumed_variable in introduced_dict:
+                if predication_index != introduced_dict[consumed_variable]:
                     # This argument uses the ARG0 event of another predication in the list
-                    if arg_value[0] == "x":
-                        topological_sort.add_edge(introduced_dict[arg_value], predication_index)
+                    if consumed_variable[0] == "x":
+                        topological_sort.add_edge(introduced_dict[consumed_variable], predication_index)
                     else:
-                        topological_sort.add_edge(predication_index, introduced_dict[arg_value])
+                        topological_sort.add_edge(predication_index, introduced_dict[consumed_variable])
 
     # Do the topological sort and return them
     topological_sort.topological_sort()
@@ -417,9 +439,9 @@ def is_this_last_fw_seq(state):
 # TODO: Change this to the better approach for checking for attributively used adjectives
 # As per this thread: https://delphinqa.ling.washington.edu/t/converting-mrs-output-to-a-logical-form/413/29
 def used_predicatively(state):
-    this_tree = state.get_binding("tree").value[0]
-    this_predication = predication_from_index(this_tree, perplexity.execution.execution_context().current_predication_index())
-    return this_predication.introduced_variable() == this_tree["Index"]
+    tree_info = state.get_binding("tree").value[0]
+    this_predication = predication_from_index(tree_info, perplexity.execution.execution_context().current_predication_index())
+    return not predication_in_conjunction(tree_info, this_predication.index)
 
 
 def is_last_fw_seq(tree, fw_seq_predication):
@@ -501,6 +523,33 @@ def gather_quantifier_order(tree_info):
     quantifier_order = []
     walk_tree_predications_until(tree_info["Tree"], gather_metadata)
     return quantifier_order
+
+
+def gather_scoped_variables_from_tree_at_index(tree, start_index):
+    def gather_scoped_variables(predication):
+        nonlocal scoped_variables, unscoped_variables
+        predication_data = parse_predication_name(predication.name)
+        if predication_data["Pos"] == "q":
+            variable_kind = scoped_variables if predication.index >= start_index else unscoped_variables
+            arg_name = predication.args[0]
+            if arg_name not in variable_kind:
+                variable_kind[arg_name] = None
+
+    scoped_variables = {}
+    unscoped_variables = {}
+    walk_tree_predications_until(tree, gather_scoped_variables)
+    return scoped_variables, unscoped_variables
+
+
+def gather_referenced_x_variables_from_tree(tree):
+    def gather_referenced_variables(predication):
+        nonlocal referenced_x_variables
+        for arg_name in predication.x_args():
+            referenced_x_variables.add(arg_name)
+
+    referenced_x_variables = set()
+    walk_tree_predications_until(tree, gather_referenced_variables)
+    return list(referenced_x_variables)
 
 
 # Gather the metadata that a developer has decorated a predication with
@@ -598,6 +647,21 @@ def find_predications_with_arg_types(term, predication_name, arg_filter):
     # predication_name
     walk_tree_predications_until(term, match_predication_name)
     return found_predications
+
+
+def predication_in_conjunction(tree_info, index):
+    def stop_at_index(predication):
+        nonlocal index
+
+        for arg in predication.args_with_types("h"):
+            if isinstance(arg, list):
+                for conjunction_predication in arg:
+                    if conjunction_predication.index == index:
+                        return True
+
+    in_conjunction = walk_tree_predications_until(tree_info["Tree"], stop_at_index)
+    return in_conjunction is True
+
 
 
 # Return the predication at a particular index
