@@ -644,7 +644,7 @@ class RequestVerbIntransitive:
 
 
 have = RequestVerbTransitive(["_have_v_1", "_get_v_1", "_take_v_1"], "have", "user_wants", "user_wants_group")
-see = RequestVerbTransitive(["_see_v_1"], "see", "user_wants_to_see", "must_write_this...")
+see = RequestVerbTransitive(["_see_v_1"], "see", "user_wants_to_see", "user_wants_to_see_group")
 sit_down = RequestVerbIntransitive(["_sit_v_down"], "sitting_down", "user_wants_to_sit")
 
 
@@ -654,12 +654,15 @@ def _have_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
 
 
 @Predication(vocabulary, names=["solution_group_" + x for x in have.predicate_name_list], handles=[("request_type", EventOption.optional)])
-def _have_v_1_group(state_list,e_list, x_act_list,x_obj_list):
+def _have_v_1_group(state_list,e_list, x_act_list, x_obj_list):
     yield from have.group_predicate_func(state_list, e_list, x_act_list, x_obj_list)
 
 @Predication(vocabulary, names=see.predicate_name_list, handles=[("request_type", EventOption.optional)])
 def _see_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
     yield from see.predicate_func(state, e_introduced_binding, x_actor_binding, x_object_binding)
+@Predication(vocabulary, names=["solution_group_" + x for x in see.predicate_name_list], handles=[("request_type", EventOption.optional)])
+def _see_v_1_group(state_list,e_list, x_act_list, x_obj_list):
+    yield from see.group_predicate_func(state_list, e_list, x_act_list, x_obj_list)
 
 
 @Predication(vocabulary, names=sit_down.predicate_name_list, handles=[("request_type", EventOption.optional)])

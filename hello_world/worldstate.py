@@ -348,11 +348,14 @@ class WorldState(State):
 
     def user_wants_group(self, users, wanted):
         allTables = True  # if multiple actors (son and user) want table, we don't need two tables
+        allMenus = True
         allTableRequests = True
-        tables = list(all_instances(self, "table"))
+
         for i in wanted:
-            if not i.value[0] in tables:
+            if not sort_of(self,i.value[0],"table"):
                 allTables = False
+            if not sort_of(self,i.value[0],"menu"):
+                allMenus = False
             if not i.value[0][0] == "{":
                 allTableRequests = False
             else:
@@ -360,6 +363,8 @@ class WorldState(State):
                     allTableRequests = False
         if allTables:
             return self.handle_world_event(["user_wants", "table1"])
+        if allMenus:
+            return self.handle_world_event(["user_wants", "menu1"])
         elif allTableRequests:
             return self.handle_world_event(["user_wants", wanted[0].value[0]])
         else:
@@ -371,6 +376,19 @@ class WorldState(State):
             return self.user_wants("menu1")
         elif wanted == "table1":
             return [RespondOperation("All our tables are nice. Trust me on this one" + self.get_reprompt())]
+        else:
+            return [RespondOperation("Sorry, I can't show you that." + self.get_reprompt())]
+
+    def user_wants_to_see_mulitple(self, wanted_list):
+            return [RespondOperation("One thing at a time, please." + self.get_reprompt())]
+    def user_wants_to_see_group(self, actor_list, wanted_list):
+        all_menu = True
+        for i in wanted_list:
+            if sort_of(self, i.value[0], "menu"):
+                all_menu = False
+                break
+        if all_menu:
+            return self.handle_world_event(["user_wants", "menu_1"])
         else:
             return [RespondOperation("Sorry, I can't show you that." + self.get_reprompt())]
 
@@ -456,3 +474,5 @@ class WorldState(State):
             return self.user_wants("table1")
         elif args[0] == "user_wants_group":
             return self.user_wants_group(args[1],args[2])
+        elif args[0] == "user_wants_to_see_group":
+            return self.user_wants_to_see_group(args[1],args[2])
