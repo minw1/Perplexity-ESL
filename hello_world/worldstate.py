@@ -346,6 +346,26 @@ class WorldState(State):
             toReturn += [AddRelOp(("user", "ordered", i)), AddBillOp(i)]
         return toReturn
 
+    def user_wants_group(self, users, wanted):
+        allTables = True  # if multiple actors (son and user) want table, we don't need two tables
+        allTableRequests = True
+        tables = list(all_instances(self, "table"))
+        for i in wanted:
+            if not i.value[0] in tables:
+                allTables = False
+            if not i.value[0][0] == "{":
+                allTableRequests = False
+            else:
+                if not json.loads(i.value[0])["structure"] == "noun_for":
+                    allTableRequests = False
+        if allTables:
+            return self.handle_world_event(["user_wants", "table1"])
+        elif allTableRequests:
+            return self.handle_world_event(["user_wants", wanted[0].value[0]])
+        else:
+            unpack = lambda x: x.value[0]
+            return self.handle_world_event(["user_wants_multiple", [unpack(j) for j in wanted]])
+
     def user_wants_to_see(self, wanted):
         if wanted == "menu1":
             return self.user_wants("menu1")
@@ -434,3 +454,5 @@ class WorldState(State):
             return self.unknown(args[1])
         elif args[0] == "user_wants_to_sit":
             return self.user_wants("table1")
+        elif args[0] == "user_wants_group":
+            return self.user_wants_group(args[1],args[2])

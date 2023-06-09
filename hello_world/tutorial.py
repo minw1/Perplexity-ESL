@@ -331,27 +331,10 @@ def _want_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
 @Predication(vocabulary, names=["solution_group__want_v_1"], handles=[("request_type", EventOption.optional)])
 def want_group(state_list, e_introduced_binding_list, x_actor_binding_list, x_what_binding_list):
     if len(state_list) == 1:
-        yield None
+        yield (state_list[0],)
     else:
         reset_operations(state_list[0])
-        allTables = True    # if multiple actors (son and user) want table, we don't need two tables
-        allTableRequests = True
-        tables = list(all_instances(state_list[0], "table"))
-        for i in x_what_binding_list:
-            if not i.value[0] in tables:
-                allTables = False
-            if not i.value[0][0] == "{":
-                allTableRequests = False
-            else:
-                if not json.loads(i.value[0])["structure"] == "noun_for":
-                    allTableRequests = False
-        if allTables:
-            yield (state_list[0].record_operations(state_list[0].handle_world_event(["user_wants","table1"])),)
-        if allTableRequests:
-            yield (state_list[0].record_operations(state_list[0].handle_world_event(["user_wants", x_what_binding_list[0].value[0]])),)
-        else:
-            unpack = lambda x: x.value[0]
-            yield (state_list[0].record_operations(state_list[0].handle_world_event(["user_wants_multiple",[unpack(j) for j in x_what_binding_list]])),)
+        yield (state_list[0].record_operations(state_list[0].user_wants_group(x_actor_binding_list, x_what_binding_list)),)
 
 
 @Predication(vocabulary, names=["_check_v_1"])
@@ -527,10 +510,11 @@ def _thanks_a_1(state, i_binding, h_binding):
 
 
 class RequestVerbTransitive:
-    def __init__(self, predicate_name_list, lemma, logic):
+    def __init__(self, predicate_name_list, lemma, logic, group_logic):
         self.predicate_name_list = predicate_name_list
         self.lemma = lemma
         self.logic = logic
+        self.group_logic = group_logic
 
     def predicate_func(self, state, e_binding, x_actor_binding, x_object_binding):
         j = state.get_binding("tree").value[0]["Index"]
@@ -604,6 +588,12 @@ class RequestVerbTransitive:
                 yield success_state
         if not state_exists:
             report_error(["RequestVerbTransitiveFailure"])
+    def group_predicate_func(self, state_list, e_introduced_binding_list, x_actor_binding_list, x_what_binding_list):
+        if len(state_list) == 1:
+            yield (state_list[0],)
+        else:
+            reset_operations(state_list[0])
+            yield (state_list[0].record_operations(state_list[0].handle_world_event([self.group_logic, x_actor_binding_list, x_what_binding_list])),)
 
 
 class RequestVerbIntransitive:
@@ -653,16 +643,19 @@ class RequestVerbIntransitive:
                 yield success_state
 
 
-have = RequestVerbTransitive(["_have_v_1", "_get_v_1", "_take_v_1"], "have", "user_wants")
-see = RequestVerbTransitive(["_see_v_1"], "see", "user_wants_to_see")
+have = RequestVerbTransitive(["_have_v_1", "_get_v_1", "_take_v_1"], "have", "user_wants", "user_wants_group")
+see = RequestVerbTransitive(["_see_v_1"], "see", "user_wants_to_see", "must_write_this...")
 sit_down = RequestVerbIntransitive(["_sit_v_down"], "sitting_down", "user_wants_to_sit")
 
 
-@Predication(vocabulary, names=have.predicate_name_list, handles=[("request_type", EventOption.optional)],
-             arguments=[("e",), ("x"), ("x")])
+@Predication(vocabulary, names=have.predicate_name_list, handles=[("request_type", EventOption.optional)])
 def _have_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
     yield from have.predicate_func(state, e_introduced_binding, x_actor_binding, x_object_binding)
 
+
+@Predication(vocabulary, names=["solution_group_" + x for x in have.predicate_name_list], handles=[("request_type", EventOption.optional)])
+def _have_v_1_group(state_list,e_list, x_act_list,x_obj_list):
+    yield from have.group_predicate_func(state_list, e_list, x_act_list, x_obj_list)
 
 @Predication(vocabulary, names=see.predicate_name_list, handles=[("request_type", EventOption.optional)])
 def _see_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
@@ -840,7 +833,7 @@ def reset():
     # return State([])
     # initial_state = WorldState({}, ["pizza", "computer", "salad", "soup", "steak", "ham", "meat","special"])
     initial_state = WorldState({},
-                                          {"prices": {"salad": 3, "steak": 10, "soup": 4, "salmon": 12, "chicken": 7, "bacon":2},
+                                          {"prices": {"salad": 3, "steak": 10, "soup": 4, "salmon": 12, "chicken": 7, "bacon" : 2},
                                 "responseState": "initial"
                                 })
     initial_state = initial_state.add_rel("table", "specializes", "thing")
