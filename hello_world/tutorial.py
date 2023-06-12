@@ -509,7 +509,7 @@ def _would_v_modal(state, e_introduced_binding, h_binding):
     yield from call(state, h_binding)
 
 @Predication(vocabulary, names=["solution_group_" + x for x in would_verbs], handles=[("request_type", EventOption.optional)])
-def _would_v_modal_group(state_list, e_introduced_binding_list, x_actor_binding_list, h_binding_list):
+def _would_v_modal_group(state_list, e_introduced_binding_list, h_binding_list):
 
     name_to_group = {}
 
@@ -518,7 +518,7 @@ def _would_v_modal_group(state_list, e_introduced_binding_list, x_actor_binding_
 
     name = h_binding_list[0].name
     if not name in name_to_group:
-        yield []
+        yield ()
         return
     argnum = len(h_binding_list[0].args)
     assert(argnum == 3)
