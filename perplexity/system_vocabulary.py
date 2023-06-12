@@ -1,12 +1,16 @@
 import copy
+import logging
+
 from perplexity.execution import execution_context, call, set_variable_execution_data, report_error, \
     get_variable_metadata
 from perplexity.plurals import VariableCriteria, GlobalCriteria, NegatedPredication
-from perplexity.predications import combinatorial_predication_1, discrete_variable_generator
-from perplexity.set_utilities import all_combinations_with_elements_from_all
+from perplexity.predications import combinatorial_predication_1, discrete_variable_generator, all_combinations_of_states
+from perplexity.set_utilities import all_combinations_with_elements_from_all, product_stream, all_nonempty_subsets
+from perplexity.solution_groups import solution_groups
 from perplexity.tree import TreePredication, gather_scoped_variables_from_tree_at_index, \
     gather_referenced_x_variables_from_tree
-from perplexity.vocabulary import Predication, Vocabulary
+from perplexity.utilities import at_least_one_generator
+from perplexity.vocabulary import Predication, Vocabulary, ValueSize
 
 vocabulary = Vocabulary()
 
@@ -141,115 +145,106 @@ def implicit_conj(state, x_binding_introduced, x_binding_first, x_binding_second
     yield from and_c(state, x_binding_introduced, x_binding_first, x_binding_second)
 
 
-def all_combinations_of_states(original_state, unused_x_variables):
-    unused_x_variables_values = list(unused_x_variables.values())
-    unused_x_variables_names = list(unused_x_variables.keys())
-    for combination in all_combinations_with_elements_from_all(unused_x_variables_values):
-        combination_list = list(combination)
-        new_state = original_state
-        for variable_index in range(len(unused_x_variables_names)):
-            new_state = new_state.set_x(unused_x_variables_names[variable_index], combination_list[variable_index])
+def generate_not_error(unscoped_referenced_variables):
+    if len(unscoped_referenced_variables) == 0:
+        quantifier_variable = execution_context().current_predication().args[1].args[0]
+        report_error(["notAllError", quantifier_variable, ["AfterFullPhrase", quantifier_variable]], force=True)
 
-        yield new_state
+    elif len(unscoped_referenced_variables) == 1:
+        report_error(["notError", ["AfterFullPhrase", unscoped_referenced_variables[0]]], force=True)
 
-
-def record_success_variables(referenced_x_variables, success_state):
-    for item in referenced_x_variables.items():
-        # TODO: break apart combinatorial variables
-        referenced_x_variables[item[0]].append(success_state.get_binding(item[0]).value)
-
-
-# Find any values in any variables in h_scopal of original state that were not
-# true for h_scopal. That means they will all be neg(False) == True
-# for neg()
-def find_unused_x_variables(original_state, used_h_scopal_x_variables):
-    unused_x_variables = dict([[x, []] for x in used_h_scopal_x_variables])
-    variable_size = {}
-    for variable_name in unused_x_variables:
-        binding_metadata = get_variable_metadata(variable_name)
-        variable_size[variable_name] = binding_metadata["ValueSize"]
-
-    for item in used_h_scopal_x_variables.items():
-        original_x_binding = original_state.get_binding(item[0])
-        original_x = original_x_binding.value
-        if original_x is not None:
-            for combinatoric_item in discrete_variable_generator(original_x, original_x_binding.variable.combinatoric, variable_size[item[0]]):
-                if combinatoric_item not in used_h_scopal_x_variables[item[0]]:
-                    unused_x_variables[item[0]].append(combinatoric_item)
-
-    non_empty_unused_x_variables = {}
-    for item in unused_x_variables.items():
-        if len(item[1]) > 0:
-            non_empty_unused_x_variables[item[0]] = item[1]
-    return non_empty_unused_x_variables
+    else:
+        report_error(["notClause"], force=True)
 
 
 @Predication(vocabulary, names=["neg"])
 def neg(state, e_introduced_binding, h_scopal):
-    # Gather all the x variables that are referenced in h_scopal
-    success_h_scopal_x_variables = dict([[x, []] for x in gather_referenced_x_variables_from_tree(h_scopal)])
+    # Gather all the bound x variables and their values that are referenced in h_scopal
+    referenced_x_variables = gather_referenced_x_variables_from_tree(h_scopal)
+    combinatorial_referenced_x_values = {}
+    for variable_name in referenced_x_variables:
+        binding = state.get_binding(variable_name)
+        if binding.value is not None and binding.variable.combinatoric:
+            combinatorial_referenced_x_values[variable_name] = binding.value
 
-    # Record all the variables this neg() has scope over
+    # Record all the variables this neg() has scope over so we can add it as an event later
     scoped_variables, unscoped_variables = gather_scoped_variables_from_tree_at_index(state.get_binding("tree").value[0]["Tree"], execution_context().current_predication_index())
 
-    # TODO: For now, refuse to run anything that has a quantifier under it so that we don't have to
-    # run numeric criteria on the "not" clause. So that a phrase like
-    # "which files not in this folder are not large?" would work
-    if len(scoped_variables) > 0:
-        report_error(["notClause"], force=True)
-        return
+    # Referenced variables that are not scoped in h_scopal
+    unscoped_referenced_variables = []
+    for referenced_x_variable in referenced_x_variables:
+        if referenced_x_variable in unscoped_variables:
+            unscoped_referenced_variables.append(referenced_x_variable)
 
-    new_state = state.add_to_e("negated_predications", execution_context().current_predication_index(), NegatedPredication(execution_context().current_predication(), scoped_variables, len(unscoped_variables) == 0))
-
+    negated_predication_info = NegatedPredication(execution_context().current_predication(), scoped_variables)
 
     # If a state makes h_scopal True, this predication fails since it is neg(). That part is straightforward.
     # However, we need to return the neg() success states too. neg() succeeds when h_scopal fails, but the problem is that
     # combinatorial variables can be in the incoming state, and thus an h_scopal like large(x) might fail for some subset of the combinatorial values
-    # in x, and we won't know since we only see the successes coming out of large(x) (i.e. when it yields)
+    # in x, and we won't know since we only see the successes coming out of large(x) (i.e. when it yields). We need a way to determine
+    # if a particular value fails
     #
-    # So, if there are combinatorial variables, we need a way to represent successes for the ones that don't work (i.e. not(false)).
-    # We can do this for any variable by comparing its incoming set of values, with values that were true for h_scopal. Any that weren't in
-    # a state that was yielded for a true value of h_scopal must have been False for h_scopal, and should be yielded as True due to neg()
+    # Furthermore, combinatorial variables might expand under neg(), like
+    #   "which files are not in two folders": which_q(x3,_file_n_of(x3,i8),neg(e9,udef_q(x12,[_folder_n_of(x12,i19), card(2,e18,x12)],_in_p_loc(e2,x3,x12))))
+    #   if x3 is combinatorial, it will expand under neg() effectively creating:
+    #   which_q(x3,,neg(e9,[_file_n_of(x3,i8), udef_q(x12,[_folder_n_of(x12,i19), card(2,e18,x12)],_in_p_loc(e2,x3,x12)))])
+    #   which is a different answer
     #
-    # The final subtlety is that *all combinations* of the combinatorial variables that weren't used must also be False in h_scopal, so we need
-    # to return the combinatorics
+    # So, if there are combinatorial variables, we need to make them discrete before neg. The final subtlety is that *all combinations* of the
+    # combinatorial variables must be tried, so we need to return the combinatorics. So, we need a function that returns the cartesian product
+    # of all combinatorial variables
+    h_scopal_has_quantifiers = len(scoped_variables) > 0
+    if h_scopal_has_quantifiers:
+        def state_generator():
+            # Use state instead of negated_predications_state so the solution group processor doesn't think
+            # this is negative: we want it evaluated positively
+            for combination_state in all_combinations_of_states(state, combinatorial_referenced_x_values):
+                # Use resolve_fragment to run numeric criteria on the "not" clause. So that a phrase like
+                # "which files not in this folder are not large?" would work
+                had_negative_success = False
+                for _ in execution_context().resolve_fragment(combination_state, h_scopal):
+                    # This is true, don't yield it since neg() makes it False
+                    generate_not_error(unscoped_referenced_variables)
+                    had_negative_success = True
 
-    # First handle the successes (that will be failures due to neg())
-    # If h_scopal is True that means that this particular solution is False due to neg()
-    # However, if there are quantifiers in h_scopal (as in "... not in 2 folders") the solution group might not be False (e.g. if there aren't two failreas for a file in 2 folders)
-    # So, we need Phase 2 to count them:
-    # - neg() marks the variables it scopes over in a special event variable
-    #   - It records that the solution is a phase 1 negative success by putting something in state that says its index and that it was a negative success
-    #     - something like {"Index": 2, "NegVariables": ['x2', 'x4']}
-    #   - Phase 2 iterates through all the criteria and if it gets to one where the variable is in a negative group
-    #     - it checks to see if this is a negative success for the index that represents that group
-    #     - if so, it succeeds and skips the rest
-    for success_state in call(new_state, h_scopal):
-        # Record all successful values of all variables referenced in h_scopal
-        record_success_variables(success_h_scopal_x_variables, success_state)
+                if execution_context().has_not_understood_error():
+                    # this was not a logical failure, we simply didn't understand
+                    return
 
-        if len(scoped_variables) > 0:
-            # Since this state succeeded, it *might* be ultimately true in h_scopal (and thus false due to neg()), but quantifiers
-            # in h_scopal (like "... in 2 folders") could make it fail in h_scopal, we won't know until phase 2
-            # The "negated_predications" event added above will make sure phase 2 treats it as negation
-            # We just yield it as a success
-            yield success_state
+                if not had_negative_success:
+                    # There were no solutions for this combination_state, so it is false, and thus true
+                    # Record that this was a negative success for debugging purposes
+                    combination_state = combination_state.add_to_e("negated_predications",
+                                                                   execution_context().current_predication_index(),
+                                                                   negated_predication_info)
+                    yield combination_state.add_to_e("negated_successes", execution_context().current_predication_index(), True)
 
-        else:
-            # If there are no quantifiers, then we know it is false already
-            # since there is no phase 2 processing required.
-            # So: don't yield it since neg() makes it False
-            report_error(["notClause"], force=True)
+    else:
+        def state_generator():
+            # Use negated_predications_state so the solution group processor knows
+            # this should be negated later when it runs
+            negated_predications_state = state.add_to_e("negated_predications",
+                                                        execution_context().current_predication_index(),
+                                                        negated_predication_info)
+            for combination_state in all_combinations_of_states(negated_predications_state, combinatorial_referenced_x_values):
+                # No scoped variables, just run it directly
+                had_negative_success = False
+                for _ in call(combination_state, h_scopal):
+                    # This is true, don't yield it since neg() makes it False
+                    generate_not_error(unscoped_referenced_variables)
+                    had_negative_success = True
 
-    # Now handle the failures
-    # Find the original referenced_x_variables that weren't successes
-    unused_x_variables = find_unused_x_variables(state, success_h_scopal_x_variables)
+                if execution_context().has_not_understood_error():
+                    # this was not a logical failure, we simply didn't understand
+                    return
 
-    # return all combinations
-    if len(unused_x_variables) > 0:
-        for negative_success_state in all_combinations_of_states(new_state, unused_x_variables):
-            # There were no solutions for this state, so it is false, and thus true
-            # Record that this was a negative success
-            # None of the determiner criteria for the subtree will have been added
-            yield negative_success_state.add_to_e("negated_successes", execution_context().current_predication_index(), True)
+                if not had_negative_success:
+                    # There were no solutions for this combination_state, so it is false, and thus true
+                    # Record that this was a negative success for debugging purposes
+                    yield combination_state.add_to_e("negated_successes", execution_context().current_predication_index(), True)
+
+    yield from state_generator()
+
+
+pipeline_logger = logging.getLogger('Pipeline')
 

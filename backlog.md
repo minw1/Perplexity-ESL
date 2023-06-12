@@ -1,15 +1,6 @@
-- which files are not in 2 folders
-  - example27: /runparse 0,1: which files are not in 2 folders
-    - Could mean "not in any 2 folders"
-    - Could mean "get the folders it is in, make sure it isn't > 1"
-      - Requires not(folder(), card(2))
-      - Run the fragment as an MRS with the state pre-loaded with variable values
-    - Interpreted as "Find 2 folders that files are not in, then return those files"
-      - Obviously No files ...
-
+- Not able to update tests for /runparse 0,1 to the actual response that happened
 - Need to be able to run code on the solution group
   - not() is going to require special processing
-
 - Bug: It looks like collective only checks for one value???
     - whole_group_unique_individuals.update(binding_value) never adds a set of individuals to the set
 - Build a backend to use for ESL Scenarios

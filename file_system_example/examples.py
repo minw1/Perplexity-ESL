@@ -565,6 +565,27 @@ def Example27():
         print()
 
 
+def Example27a_reset():
+    return FileSystemState(FileSystemMock([(True, "/59.txt", {"size": 1000}),
+                                           (True, "/documents/file1.txt", {"size": 1000}),
+                                           (False, "/Desktop", {"size": 10000000}),
+                                           (True, "/Desktop/the yearly budget.txt", {"size": 10000000}),
+                                           (True, "/Desktop/bigfile.txt", {"size": 20000000}),
+                                           (True, "/Desktop/bigfile2.txt", {"size": 20000000}),
+                                           (True, "/Desktop/bigfile3.txt", {"size": 20000000}),
+                                           (True, "/Desktop/blue", {"size": 10000000}),
+                                           (True, "/Desktop/green", {"size": 10000000})],
+                                           "/Desktop"))
+
+
+def Example27a():
+    user_interface = UserInterface(Example27a_reset, vocabulary, generate_message, error_priority, respond_to_mrs_tree)
+
+    while True:
+        user_interface.interact_once()
+        print()
+
+
 def Example28_reset():
     return FileSystemState(FileSystemMock([(True, "/temp/59.txt", {"size": 1000}),
                                            (True, "/documents/file1.txt", {"size": 1000}),
@@ -966,7 +987,7 @@ if __name__ == '__main__':
     # ShowLogging("Execution")
     # ShowLogging("Generation")
     # ShowLogging("UserInterface")
-    ShowLogging("Pipeline")
+    # ShowLogging("Pipeline")
     # ShowLogging("SString")
     # ShowLogging("Determiners")
     # ShowLogging("SolutionGroups")
@@ -998,7 +1019,7 @@ if __name__ == '__main__':
     # Example16()
     # Example17()
     # Example18()
-    # Example19()
+    Example19()
     # Example20()
     # Example21()
     # Example22()
@@ -1006,7 +1027,8 @@ if __name__ == '__main__':
     # Example24()
     # Example25()
     # Example26()
-    Example27()
+    # Example27()
+    # Example27a()
     # Example28()
     # Example29()
     # Example30()
