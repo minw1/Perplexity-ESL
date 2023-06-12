@@ -280,18 +280,17 @@ class WorldState(State):
                         return [RespondOperation("Um... You're at a table." + self.get_reprompt())]
                 return [RespondOperation("How many in your party?"), ResponseStateOp("anticipate_party_size")]
 
-        for i in all_instances(self, "menu"):
-            if i == wanted:
-                if "at" in self.rel.keys():
-                    if ("user", "table") in self.rel["at"]:
-                        if ("user", "menu1") not in self.rel["have"]:
-                            return [AddRelOp(("user", "have", "menu1")), RespondOperation(
-                                "Waiter: Oh, I forgot to give you the menu? Here it is. The waiter walks off.\nSteak -- $5\nRoasted Chicken -- $7\nGrilled Salmon -- $12\nYou read the menu and then the waiter returns.\nWaiter: What can I get you?"),
-                                    ResponseStateOp("anticipate_dish")]
-                        else:
-                            return [RespondOperation(
-                                "Oh, I already gave you a menu. You look and see that there is a menu in front of you.\nSteak -- $5\nRoasted Chicken -- $7\nGrilled Salmon -- $12\n" + self.get_reprompt())]
-                return [RespondOperation("Sorry, you must be seated to order")]
+        if sort_of(self, wanted, "menu"):
+            if "at" in self.rel.keys():
+                if ("user", "table") in self.rel["at"]:
+                    if ("user", "menu1") not in self.rel["have"]:
+                        return [AddRelOp(("user", "have", "menu1")), RespondOperation(
+                            "Waiter: Oh, I forgot to give you the menu? Here it is. The waiter walks off.\nSteak -- $5\nRoasted Chicken -- $7\nGrilled Salmon -- $12\nYou read the menu and then the waiter returns.\nWaiter: What can I get you?"),
+                                ResponseStateOp("anticipate_dish")]
+                    else:
+                        return [RespondOperation(
+                            "Oh, I already gave you a menu. You look and see that there is a menu in front of you.\nSteak -- $5\nRoasted Chicken -- $7\nGrilled Salmon -- $12\n" + self.get_reprompt())]
+            return [RespondOperation("Sorry, you must be seated to order")]
 
         if wanted == "bill1":
             for i in self.rel["valueOf"]:
@@ -384,11 +383,11 @@ class WorldState(State):
     def user_wants_to_see_group(self, actor_list, wanted_list):
         all_menu = True
         for i in wanted_list:
-            if sort_of(self, i.value[0], "menu"):
+            if not sort_of(self, i.value[0], "menu"):
                 all_menu = False
                 break
         if all_menu:
-            return self.handle_world_event(["user_wants", "menu_1"])
+            return self.handle_world_event(["user_wants", "menu1"])
         else:
             return [RespondOperation("Sorry, I can't show you that." + self.get_reprompt())]
 
@@ -471,6 +470,8 @@ class WorldState(State):
         elif args[0] == "unknown":
             return self.unknown(args[1])
         elif args[0] == "user_wants_to_sit":
+            return self.user_wants("table1")
+        elif args[0] == "user_wants_to_sit_group":
             return self.user_wants("table1")
         elif args[0] == "user_wants_group":
             return self.user_wants_group(args[1],args[2])

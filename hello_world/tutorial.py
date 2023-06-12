@@ -462,16 +462,78 @@ def _like_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
         yield state
 
 
-@Predication(vocabulary, names=["_like_v_1", "_want_v_1"], handles=[("request_type", EventOption.optional)])
+like_to_verbs = ["_like_v_1", "_want_v_1"]
+@Predication(vocabulary, names=like_to_verbs, handles=[("request_type", EventOption.optional)])
 def _like_v_1_exh(state, e_introduced_binding, x_actor_binding, h_binding):
     event_to_mod = h_binding.args[0]
 
     yield from call(state.add_to_e(event_to_mod, "request_type", True), h_binding)
+@Predication(vocabulary, names=["solution_group_" + x for x in like_to_verbs], handles=[("request_type", EventOption.optional)])
+def _like_v_1_exh_group(state_list, e_introduced_binding_list, x_actor_binding_list, h_binding_list):
+
+    name_to_group = {}
+    for i in have.predicate_name_list:
+        name_to_group[i] = _have_v_1_group
+    for i in see.predicate_name_list:
+        name_to_group[i] = _see_v_1_group
+    for i in sit_down.predicate_name_list:
+        name_to_group[i] = _sit_v_down_group
+    for i in like_to_verbs:
+        name_to_group[i] = _like_v_1_exh_group
+
+    name = h_binding_list[0].name
+    if not name in name_to_group:
+        yield []
+        return
+    argnum = len(h_binding_list[0].args)
+    actor_list = []
+    object_list = []
+    event_list = []
+
+    for i in range(len(h_binding_list)):
+        h = h_binding_list[i]
+        event_list += [state_list[i].get_binding(h.args[0])]
+        actor_list += [state_list[i].get_binding(h.args[1])]
+        if argnum > 2:
+            object_list += [state_list[i].get_binding(h.args[2])]
+    if argnum == 3:
+        yield from name_to_group[name](state_list,event_list,actor_list,object_list)
+    elif argnum == 2:
+        yield from name_to_group[name](state_list, event_list, actor_list)
 
 
-@Predication(vocabulary, names=["_would_v_modal"])
+
+would_verbs = ["_would_v_modal","_could_v_modal", "_can_v_modal"]
+@Predication(vocabulary, names=would_verbs)
 def _would_v_modal(state, e_introduced_binding, h_binding):
     yield from call(state, h_binding)
+
+@Predication(vocabulary, names=["solution_group_" + x for x in would_verbs], handles=[("request_type", EventOption.optional)])
+def _would_v_modal_group(state_list, e_introduced_binding_list, x_actor_binding_list, h_binding_list):
+
+    name_to_group = {}
+
+    for i in like_to_verbs:
+        name_to_group[i] = _like_v_1_exh_group
+
+    name = h_binding_list[0].name
+    if not name in name_to_group:
+        yield []
+        return
+    argnum = len(h_binding_list[0].args)
+    assert(argnum == 3)
+    actor_list = []
+    h_list = []
+    event_list = []
+
+    for i in range(len(h_binding_list)):
+        h = h_binding_list[i]
+        event_list += [state_list[i].get_binding(h.args[0])]
+        actor_list += [state_list[i].get_binding(h.args[1])]
+        h_list += [state_list[i].get_binding(h.args[2])]
+
+    yield from name_to_group[name](state_list,event_list,actor_list,h_list)
+
 
 
 @Predication(vocabulary, names=["_please_a_1"])
@@ -482,11 +544,6 @@ def _please_a_1(state, e_introduced_binding, e_binding):
 @Predication(vocabulary, names=["_please_v_1"])
 def _please_v_1(state, e_introduced_binding, i_binding1, i_binding2):
     yield state
-
-
-@Predication(vocabulary, names=["_could_v_modal", "_can_v_modal"])
-def _could_v_modal(state, e_introduced_binding, h_binding):
-    yield from call(state, h_binding)
 
 
 @Predication(vocabulary, names=["polite"])
@@ -589,18 +646,39 @@ class RequestVerbTransitive:
         if not state_exists:
             report_error(["RequestVerbTransitiveFailure"])
     def group_predicate_func(self, state_list, e_introduced_binding_list, x_actor_binding_list, x_what_binding_list):
-        if len(state_list) == 1:
-            yield (state_list[0],)
+
+
+        should_call_want = False
+        for i in range(len(state_list)):
+            is_request = False
+            if not e_introduced_binding_list[0] is None:
+                if e_introduced_binding_list[0].value is not None:
+                    if "request_type" in e_introduced_binding_list[0].value:
+                        is_request = e_introduced_binding_list[0].value["request_type"]
+            j = state_list[0].get_binding("tree").value[0]["Index"]
+            is_modal = find_predication_from_introduced(state_list[0].get_binding("tree").value[0]["Tree"], j).name in [
+                "_could_v_modal", "_can_v_modal", "_would_v_modal"]
+            is_future = (state_list[0].get_binding("tree").value[0]["Variables"][j]["TENSE"] == "fut")
+            if is_request or is_modal or is_future:
+                should_call_want = True
+                break
+
+        if not should_call_want:
+            yield state_list
         else:
-            reset_operations(state_list[0])
-            yield (state_list[0].record_operations(state_list[0].handle_world_event([self.group_logic, x_actor_binding_list, x_what_binding_list])),)
+            if len(state_list) == 1:
+                yield (state_list[0],)
+            else:
+                reset_operations(state_list[0])
+                yield (state_list[0].record_operations(state_list[0].handle_world_event([self.group_logic, x_actor_binding_list, x_what_binding_list])),)
 
 
 class RequestVerbIntransitive:
-    def __init__(self, predicate_name_list, lemma, logic):
+    def __init__(self, predicate_name_list, lemma, logic, group_logic):
         self.predicate_name_list = predicate_name_list
         self.lemma = lemma
         self.logic = logic
+        self.group_logic = group_logic
 
     def predicate_func(self, state, e_binding, x_actor_binding):
         j = state.get_binding("tree").value[0]["Index"]
@@ -641,27 +719,51 @@ class RequestVerbIntransitive:
                 yield success_state.record_operations(success_state.handle_world_event([self.logic, x_act]))
             else:
                 yield success_state
+    def group_predicate_func(self,state_list,e_introduced_binding_list,x_actor_binding_list):
+        should_call_want = False
+        for i in range(len(state_list)):
+            is_request = False
+            if not e_introduced_binding_list[0] is None:
+                if e_introduced_binding_list[0].value is not None:
+                    if "request_type" in e_introduced_binding_list[0].value:
+                        is_request = e_introduced_binding_list[0].value["request_type"]
+            j = state_list[0].get_binding("tree").value[0]["Index"]
+            is_modal = find_predication_from_introduced(state_list[0].get_binding("tree").value[0]["Tree"], j).name in [
+                "_could_v_modal", "_can_v_modal", "_would_v_modal"]
+            is_future = (state_list[0].get_binding("tree").value[0]["Variables"][j]["TENSE"] == "fut")
+            if is_request or is_modal or is_future:
+                should_call_want = True
+                break
+
+        if not should_call_want:
+            yield state_list
+        else:
+            if len(state_list) == 1:
+                yield (state_list[0],)
+            else:
+                reset_operations(state_list[0])
+                yield (state_list[0].record_operations(state_list[0].handle_world_event([self.group_logic, x_actor_binding_list])),)
+
 
 
 have = RequestVerbTransitive(["_have_v_1", "_get_v_1", "_take_v_1"], "have", "user_wants", "user_wants_group")
 see = RequestVerbTransitive(["_see_v_1"], "see", "user_wants_to_see", "user_wants_to_see_group")
-sit_down = RequestVerbIntransitive(["_sit_v_down"], "sitting_down", "user_wants_to_sit")
+sit_down = RequestVerbIntransitive(["_sit_v_down"], "sitting_down", "user_wants_to_sit", "user_wants_to_sit_group")
 
 
 @Predication(vocabulary, names=have.predicate_name_list, handles=[("request_type", EventOption.optional)])
 def _have_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
     yield from have.predicate_func(state, e_introduced_binding, x_actor_binding, x_object_binding)
 
-
 @Predication(vocabulary, names=["solution_group_" + x for x in have.predicate_name_list], handles=[("request_type", EventOption.optional)])
-def _have_v_1_group(state_list,e_list, x_act_list, x_obj_list):
+def _have_v_1_group(state_list, e_list, x_act_list, x_obj_list):
     yield from have.group_predicate_func(state_list, e_list, x_act_list, x_obj_list)
 
 @Predication(vocabulary, names=see.predicate_name_list, handles=[("request_type", EventOption.optional)])
 def _see_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
     yield from see.predicate_func(state, e_introduced_binding, x_actor_binding, x_object_binding)
 @Predication(vocabulary, names=["solution_group_" + x for x in see.predicate_name_list], handles=[("request_type", EventOption.optional)])
-def _see_v_1_group(state_list,e_list, x_act_list, x_obj_list):
+def _see_v_1_group(state_list, e_list, x_act_list, x_obj_list):
     yield from see.group_predicate_func(state_list, e_list, x_act_list, x_obj_list)
 
 
@@ -669,6 +771,9 @@ def _see_v_1_group(state_list,e_list, x_act_list, x_obj_list):
 def _sit_v_down(state, e_introduced_binding, x_actor_binding):
     yield from sit_down.predicate_func(state, e_introduced_binding, x_actor_binding)
 
+@Predication(vocabulary, names=["solution_group_" + x for x in sit_down.predicate_name_list], handles=[("request_type", EventOption.optional)])
+def _sit_v_down_group(state_list, e_introduced_binding_list, x_actor_binding_list):
+    yield from sit_down.group_predicate_func(state_list, e_introduced_binding_list, x_actor_binding_list)
 
 @Predication(vocabulary, names=["poss"])
 def poss(state, e_introduced_binding, x_object_binding, x_actor_binding):
