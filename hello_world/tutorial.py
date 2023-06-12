@@ -465,6 +465,10 @@ def _like_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
 like_to_verbs = ["_like_v_1", "_want_v_1"]
 @Predication(vocabulary, names=like_to_verbs, handles=[("request_type", EventOption.optional)])
 def _like_v_1_exh(state, e_introduced_binding, x_actor_binding, h_binding):
+    if not h_binding.arg_types[0] == "e":
+        yield from call(state,h_binding)
+        return
+
     event_to_mod = h_binding.args[0]
 
     yield from call(state.add_to_e(event_to_mod, "request_type", True), h_binding)
@@ -518,7 +522,7 @@ def _would_v_modal_group(state_list, e_introduced_binding_list, h_binding_list):
 
     name = h_binding_list[0].name
     if not name in name_to_group:
-        yield ()
+        yield []
         return
     argnum = len(h_binding_list[0].args)
     assert(argnum == 3)
@@ -528,9 +532,9 @@ def _would_v_modal_group(state_list, e_introduced_binding_list, h_binding_list):
 
     for i in range(len(h_binding_list)):
         h = h_binding_list[i]
-        event_list += [state_list[i].get_binding(h.args[0])]
-        actor_list += [state_list[i].get_binding(h.args[1])]
-        h_list += [state_list[i].get_binding(h.args[2])]
+        event_list += [h.args[0]]
+        actor_list += [h.args[1]]
+        h_list += [h.args[2]]
 
     yield from name_to_group[name](state_list,event_list,actor_list,h_list)
 
