@@ -476,18 +476,19 @@ def _like_v_1_exh(state, e_introduced_binding, x_actor_binding, h_binding):
 @Predication(vocabulary, names=["solution_group_" + x for x in like_to_verbs], handles=[("request_type", EventOption.optional)])
 def _like_v_1_exh_group(state_list, e_introduced_binding_list, x_actor_binding_list, h_binding_list):
 
-    name_to_group = {}
+    verb_table = VerbTable()
+
     for i in have.predicate_name_list:
-        name_to_group[i] = _have_v_1_group
+        verb_table.add(i,['e','x','x'],_have_v_1_group)
     for i in see.predicate_name_list:
-        name_to_group[i] = _see_v_1_group
+        verb_table.add(i,['e','x','x'],_see_v_1_group)
     for i in sit_down.predicate_name_list:
-        name_to_group[i] = _sit_v_down_group
-    for i in like_to_verbs:
-        name_to_group[i] = _like_v_1_exh_group
+        verb_table.add(i,['e','x'],_sit_v_down_group)
+
 
     name = h_binding_list[0].name
-    if not name in name_to_group:
+    arg_struct = h_binding_list[0].arg_types
+    if verb_table.lookup(name, arg_struct) is None:
         yield []
         return
     argnum = len(h_binding_list[0].args)
@@ -502,9 +503,9 @@ def _like_v_1_exh_group(state_list, e_introduced_binding_list, x_actor_binding_l
         if argnum > 2:
             object_list += [state_list[i].get_binding(h.args[2])]
     if argnum == 3:
-        yield from name_to_group[name](state_list,event_list,actor_list,object_list)
+        yield from verb_table.lookup(name,arg_struct)(state_list,event_list,actor_list,object_list)
     elif argnum == 2:
-        yield from name_to_group[name](state_list, event_list, actor_list)
+        yield from verb_table.lookup(name,arg_struct)(state_list, event_list, actor_list)
 
 
 
