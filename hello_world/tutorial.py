@@ -16,6 +16,7 @@ from perplexity.user_interface import UserInterface
 from perplexity.utilities import ShowLogging
 from perplexity.vocabulary import Predication, EventOption, ValueSize
 from worldstate import *
+from VerbTable import VerbTable
 
 vocabulary = system_vocabulary()
 
@@ -515,13 +516,14 @@ def _would_v_modal(state, e_introduced_binding, h_binding):
 @Predication(vocabulary, names=["solution_group_" + x for x in would_verbs], handles=[("request_type", EventOption.optional)])
 def _would_v_modal_group(state_list, e_introduced_binding_list, h_binding_list):
 
-    name_to_group = {}
+    verb_table = VerbTable()
 
     for i in like_to_verbs:
-        name_to_group[i] = _like_v_1_exh_group
+        verb_table.add(i,['e','x','h'],_like_v_1_exh_group)
 
     name = h_binding_list[0].name
-    if not name in name_to_group:
+    arg_struct = h_binding_list[0].arg_types
+    if verb_table.lookup(name, arg_struct) is None:
         yield []
         return
     argnum = len(h_binding_list[0].args)
@@ -536,7 +538,7 @@ def _would_v_modal_group(state_list, e_introduced_binding_list, h_binding_list):
         actor_list += [h.args[1]]
         h_list += [h.args[2]]
 
-    yield from name_to_group[name](state_list,event_list,actor_list,h_list)
+    yield from verb_table.lookup(name,arg_struct)(state_list,event_list,actor_list,h_list)
 
 
 
