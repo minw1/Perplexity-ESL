@@ -382,6 +382,8 @@ class WorldState(State):
         else:
             yield from [(x[0], x[1]) for x in self._rel[rel]]
 
+    def rel_exists(self, rel):
+        return rel in self._rel.keys()
     # ******* Base Operations ********
 
     def frames(self):
@@ -472,7 +474,7 @@ class WorldState(State):
 
     def user_ordered_veg(self):
         veggies = list(all_instances(self, "veggie"))
-        if "ordered" in self.rel.keys():
+        if self.rel_exists("ordered"):
             for i in self.all_rel("ordered"):
                 if i[0] == "user":
                     if i[1] in veggies:

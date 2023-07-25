@@ -153,7 +153,7 @@ def get_table_at_entrance(state, who_multiple, table):
         # If the count of table is > 1, fail
         table_count = noun_structure(table, "card")
         if table_count is not None and table_count != 1:
-            return [('respond', "I suspect you want to sit together.")]
+            return [('respond', "Johnny: Hey, let's sit together alright?")]
         for_structure = noun_structure(table, "for")
         for_count = count_entities(for_structure)
         # If they say "we want a table" or "table for 2" the size is implied

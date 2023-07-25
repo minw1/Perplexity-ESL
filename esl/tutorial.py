@@ -1425,6 +1425,7 @@ def reset():
             if dish_type == "salmon":
                 initial_state = initial_state.add_rel(food_instance, "isAdj", "grilled")
 
+    initial_state = initial_state.add_rel("computer", "have", "special")
     initial_state = initial_state.add_rel("bill1", "instanceOf", "bill")
     initial_state = initial_state.add_rel("bill1", "instanceOf", "check")
     initial_state = initial_state.add_rel(0, "valueOf", "bill1")
