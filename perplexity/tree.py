@@ -7,6 +7,8 @@ import sys
 from collections import defaultdict
 from delphin import ace
 from delphin.codecs.simplemrs import encode
+from delphin.predicate import split
+
 import perplexity.execution
 from perplexity.tree_algorithm_zinda2020 import valid_hole_assignments
 from perplexity.utilities import parse_predication_name, sentence_force
@@ -58,7 +60,36 @@ class MrsParser(object):
     def mrs_to_string(self, mrs):
         return encode(mrs)
 
+    def unscoped_tree(self, mrs):
+        conjunction_list = []
+        current_index = 0
+        for predication in mrs.predications:
+            if split(predication.predicate)[1] == "q":
+                if predication.predicate not in ["udef_q", "pronoun_q", "proper_q", "_which_q", "which_q", "generic_q"]:
+                    return False
+                else:
+                    continue
+            else:
+                # If a predication takes a scopal argument it might need to get inserted into any place
+                # in the tree (i.e. neg()) so we need to return the different trees
+                for arg_name in predication.args.keys():
+                    original_value = predication.args[arg_name]
+
+                    # CARG arguments contain strings that are never
+                    # variables, they are constants
+                    if arg_name not in ["CARG"]:
+                        argType = original_value[0]
+                        if argType == "h":
+                            return False
+
+        return True
+
+        # If we got here, all predications don't need scope
     def trees_from_mrs(self, mrs):
+        # If the tree doesn't have any true scopes, then only return
+        # one tree since they will all be the same
+        unscoped = self.unscoped_tree(mrs)
+
         # Create a dict of predications using their labels as each key
         # for easy access when building trees
         # Note that a single label could represent multiple predications
@@ -87,6 +118,8 @@ class MrsParser(object):
                                                          mrs)
                 pipeline_logger.debug(f"Tree: {well_formed_tree}")
                 yield well_formed_tree
+                if unscoped:
+                    return
 
     def erg_file(self):
         if sys.platform == "linux":
@@ -154,6 +187,9 @@ class TreePredication(object):
 
     def x_args(self):
         return self.args_with_types(["x"])
+
+    def scopal_args(self):
+        return self.args_with_types(["h"])
 
     def args_with_types(self, types):
         found_args = []
@@ -449,6 +485,14 @@ def is_last_fw_seq(tree, fw_seq_predication):
     return len([predication for predication in consuming_predications if predication.name != "fw_seq"]) > 0
 
 
+def get_wh_question_variable(tree_info):
+    this_sentence_force = sentence_force(tree_info["Variables"])
+    if this_sentence_force in ["ques", "prop-or-ques"]:
+        predication = find_predications_in_list_in_list([tree_info["Tree"]], ["_which_q", "which_q"])
+        if predication is not None and len(predication) > 0:
+            return predication[0].args[0]
+
+
 def find_predications_using_variable(term, variable):
     def match_predication_using_variable(predication):
         for arg_index in range(1, len(predication.arg_types)):
@@ -488,6 +532,22 @@ def find_predications_in_list_in_list(term, predication_name_list):
             found_predications.append(predication)
 
     return found_predications
+
+
+# Returns the conjunction (if any) that the predication that introduced this
+# variable is in
+def find_predication_conjunction_from_introduced(term, introduced_variable):
+    def match_introduced_variable(predication):
+        for scopal_arg_raw in predication.scopal_args():
+            scopal_arg_list = scopal_arg_raw if isinstance(scopal_arg_raw, list) else [scopal_arg_raw]
+            for scopal_arg_predication in scopal_arg_list:
+                if scopal_arg_predication.introduced_variable() == introduced_variable:
+                    predication_data = parse_predication_name(scopal_arg_predication.name)
+                    if predication_data["Pos"] != "q":
+                        return scopal_arg_list
+        return None
+
+    return walk_tree_predications_until(term, match_introduced_variable)
 
 
 def find_predication_from_introduced(term, introduced_variable):
@@ -625,6 +685,14 @@ def find_predications(term, predication_name):
     # predication_name
     walk_tree_predications_until(term, match_predication_name)
     return found_predications
+
+
+def tree_contains_predication(term, predication_list):
+    def match_predication_name(predication):
+        if predication.name in predication_list:
+            return True
+
+    return walk_tree_predications_until(term, match_predication_name)
 
 
 def find_predications_with_arg_types(term, predication_name, arg_filter):

@@ -1,3 +1,41 @@
+- 
+ 
+- I want to sit down?
+- could I sit down?
+- 
+- "I will see menus" --> works, but shouldn't
+- implement future tense get
+  - Will I get a menu?
+- Make "I take a steak" or "I get a steak" say "Did you mean X"
+- "Do I/my son have a menu?" doesn't work
+- "What did I order?" --> Make work for debugging
+- implement past tense get: "Did I get a steak?"
+- Can we automatically call count_of_instances_and_concepts() for conceptual stuff? So that we don't have to call it in the group?
+
+
+- "what are your specials?" --> There isn't a special in the system
+- "What do you have?"
+    - In the context of the entrance, this *could* mean "do you have a table for us?" or "Do you have a menu?"
+    - at the table it means the menu
+- Make "how much are your dishes" work
+- Get rid of old code
+- Verbs should declare what tenses they deal with, if none, they should default to present only
+- Figure out how to make "I want 2 steaks and 1 salad" work
+  - it only sends "2 steaks" to want so that is all that gets checked
+- Get the bill working
+- Make "What is not on the menu?" work properly
+- Get rid of old code that has been implemented differently
+- Fix ontology.  Right now there are instances on the menu, for example
+- Handle concepts with extra information "bill for the food" failing if we don't know it
+- I'd like 2 steaks at the front door -> doesn't work
+
+- Demo for summit
+  - card() not in rstr
+- Not issues: For Example23
+  - large files are not in this folder -> Yes, that is true.
+    - Interpreted as not(large files in this folder)
+
+
 - Not able to update tests for /runparse 0,1 to the actual response that happened
 - Need to be able to run code on the solution group
   - not() is going to require special processing

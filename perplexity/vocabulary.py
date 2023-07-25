@@ -2,6 +2,7 @@ import enum
 import inspect
 import logging
 import perplexity.execution
+from perplexity.transformer import build_transformed_tree
 from perplexity.utilities import parse_predication_name
 from perplexity.variable_binding import VariableBinding
 
@@ -22,12 +23,23 @@ class ValueSize(enum.Enum):
     all = 3
 
 
-def Predication(vocabulary, names=None, arguments=None, phrase_types=None, handles=None, virtual_args=None, matches_lemma_function=None):
+def override_predications(vocabulary, library, name_list):
+    vocabulary.override_predications(library, name_list)
+
+def Transform(vocabulary):
+    def PredicationDecorator(function_to_decorate):
+        vocabulary.add_transform(function_to_decorate())
+
+    return PredicationDecorator
+
+def Predication(vocabulary, library=None, names=None, arguments=None, phrase_types=None, handles=None, virtual_args=None, matches_lemma_function=None):
     # Work around Python's odd handling of default arguments that are objects
     if handles is None:
         handles = []
     if virtual_args is None:
         virtual_args = []
+    if library is None:
+        library = "user"
 
     # handles = [(Name, EventOption), ...]
     # returns True or False, if False sets an error using report_error
@@ -155,7 +167,7 @@ def Predication(vocabulary, names=None, arguments=None, phrase_types=None, handl
 
         is_solution_group = any(name.startswith("solution_group") for name in predication_names)
 
-        metadata = PredicationMetadata(argument_metadata(function_to_decorate, arguments), is_match_all, matches_lemma_function)
+        metadata = PredicationMetadata(library, argument_metadata(function_to_decorate, arguments), is_match_all, matches_lemma_function)
         final_arg_types = metadata.arg_types()
         final_phrase_types = phrase_types if phrase_types is not None else phrase_types_from_function(function_to_decorate)
 
@@ -167,10 +179,11 @@ def Predication(vocabulary, names=None, arguments=None, phrase_types=None, handl
 
 
 class PredicationMetadata(object):
-    def __init__(self, args_metadata, match_all, matches_lemmas):
+    def __init__(self, library, args_metadata, match_all, matches_lemmas):
         self.args_metadata = args_metadata
         self._match_all = match_all
         self.matches_lemmas = matches_lemmas
+        self.library = library
 
     def arg_types(self):
         return [arg_metadata["VariableType"] for arg_metadata in self.args_metadata]
@@ -191,6 +204,10 @@ class Vocabulary(object):
         # index each DELPH-IN predication by name
         # then have a list of Metadata objects for each implementation of it
         self._metadata = dict()
+        self.transformers = []
+        # Words that should not prevent trees from being built due to being unknown
+        # because a transformer removes them
+        self.transformer_removed = set()
 
     def metadata(self, delphin_name, arg_types):
         metadata_list = []
@@ -213,6 +230,22 @@ class Vocabulary(object):
         name_parts = parse_predication_name(delphin_name)
         return name_parts["Lemma"] in self.words
 
+    def add_transform(self, transformer_root):
+        for removed in transformer_root.removed_predications():
+            self.transformer_removed.add(removed)
+        self.transformers.append(transformer_root)
+
+    def override_predications(self, library, name_list):
+        for name in name_list:
+            self._metadata.pop(name, None)
+            keys_to_remove = []
+            for key in self.all:
+                if key.startswith(name):
+                    keys_to_remove.append(key)
+
+            for key in keys_to_remove:
+                self.all.pop(key, None)
+
     def add_predication(self, predication_metadata, module, function, delphin_names, arg_types, phrase_types, first=False):
         if len(phrase_types) == 0:
             phrase_types = ["comm", "ques", "prop", "prop-or-ques", "norm"]
@@ -221,7 +254,8 @@ class Vocabulary(object):
             metadata_key = self.name_key(delphin_name, arg_types, "")
             if metadata_key not in self._metadata:
                 self._metadata[metadata_key] = []
-
+            elif self._metadata[metadata_key][0].library != predication_metadata.library:
+                assert False, f"Predication {metadata_key} already exists from library {self._metadata[metadata_key][0].library}. Use override('{predication_metadata.library}', ['{metadata_key}']) to hide it."
             self._metadata[metadata_key].append(predication_metadata)
 
             name_parts = parse_predication_name(delphin_name)
@@ -240,6 +274,15 @@ class Vocabulary(object):
                 else:
                     type_list.append((module, function))
 
+    def alternate_trees(self, state, tree_info, yield_original):
+        for transformer_root in self.transformers:
+            new_tree_info = build_transformed_tree(self, state, tree_info, transformer_root)
+            if new_tree_info:
+                yield new_tree_info
+
+        if yield_original:
+            yield tree_info
+
     def predications(self, name, arg_types, predication_type):
         name_key = self.name_key(name, arg_types, predication_type)
         if name_key in self.all:
@@ -250,6 +293,29 @@ class Vocabulary(object):
         if generic_key in self.all:
             for module_function in self.all[generic_key]:
                 yield module_function + ([lemma], )
+
+    def unknown_word(self, state, predicate_name, argument_types, phrase_type):
+        predications = list(self.predications(predicate_name, argument_types, phrase_type))
+        all_metadata = [meta for meta in
+                        self.metadata(predicate_name, argument_types)]
+        if len(predications) == 0 or \
+                (all(meta.is_match_all() for meta in all_metadata) and not self._in_match_all(state, predicate_name,
+                                                                                             argument_types,
+                                                                                             all_metadata)):
+            return True
+
+        else:
+            return False
+
+    def _in_match_all(self, state, predication_name, argument_types, metadata_list):
+        for metadata in metadata_list:
+            if metadata.is_match_all():
+                predication_info = parse_predication_name(predication_name)
+                if metadata.matches_lemmas(state, predication_info["Lemma"]):
+                    return True
+
+        else:
+            return False
 
 
 pipeline_logger = logging.getLogger('Pipeline')

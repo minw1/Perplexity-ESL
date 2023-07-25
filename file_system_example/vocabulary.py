@@ -1,8 +1,8 @@
 from file_system_example.objects import File, Folder, Megabyte, Actor, QuotedText
 from file_system_example.state import DeleteOperation, ChangeDirectoryOperation, CopyOperation
 from perplexity.OpenAI import StartOpenAIBooleanRequest, CompleteOpenAIRequest
-from perplexity.plurals import GlobalCriteria, VariableCriteria, CriteriaResult
-from perplexity.execution import report_error, call, execution_context
+from perplexity.plurals import GlobalCriteria, VariableCriteria
+from perplexity.execution import report_error, execution_context
 from perplexity.predications import combinatorial_predication_1, lift_style_predication_2, in_style_predication_2, \
     individual_style_predication_1, discrete_variable_generator
 from perplexity.response import RespondOperation
@@ -13,34 +13,63 @@ from perplexity.tree import used_predicatively, is_this_last_fw_seq, find_predic
 from perplexity.utilities import sentence_force
 from perplexity.variable_binding import VariableBinding
 from perplexity.virtual_arguments import scopal_argument
-from perplexity.vocabulary import Vocabulary, Predication, EventOption, ValueSize
+from perplexity.vocabulary import Predication, EventOption, ValueSize, override_predications
 
 
 vocabulary = system_vocabulary()
+override_predications(vocabulary, "user", ["card__cex__"])
 
 # Constants for creating virtual arguments from scopal arguments
 locative_preposition_end_location = {"LocativePreposition": {"Value": {"EndLocation": VariableBinding}}}
 
 
+
+def in_scope_initialize(state):
+    # Some tests don't use the file system object so everything is in scope
+    if not hasattr(state, "user"):
+        return None
+
+    current_directory = state.user().current_directory()
+    # We are looking at the contained items in the user's current directory
+    # which is *not* the object in the binding. So: we need contained_items()
+    # to report an error that is not variable related, so we pass it None
+    contained_binding = VariableBinding(None, current_directory)
+    contained_items = set(current_directory.contained_items(contained_binding.variable))
+    return {"ContainedItems": contained_items, "CurrentDirectory": current_directory}
+
+
+def in_scope(initial_data, state, value):
+    # Some tests don't use the file system object so everything is in scope
+    if initial_data is None:
+        return True
+
+    if value in initial_data["ContainedItems"] or value == initial_data["CurrentDirectory"]:
+        return True
+    else:
+        report_error(["valueIsNotValue", value, "this"])
+        return False
+
+
 @Predication(vocabulary, names=["solution_group__in_p_loc"])
-def in_p_loc_fail(state_list, e_introduced_binding_list, x_actor_binding_list, x_location_binding_list):
+def in_p_loc_fail(state_list, has_more, e_introduced_binding_list, x_actor_binding_list, x_location_binding_list):
     test_binding = state_list[0].get_binding("test_solution_group")
     if test_binding.value is not None and test_binding.value[0] == "failAll":
         report_error(["beMoreSpecific"], force=True)
         yield []
 
+
 @Predication(vocabulary, names=["solution_group__copy_v_1"])
-def fail_to_copy(state_list, e_introduced_binding_list, x_actor_binding_list, x_what_binding_list):
+def fail_to_copy(state_list, has_more, e_introduced_binding_list, x_actor_group_variable_values, x_what_group_variable_values):
     test_binding = state_list[0].get_binding("test_solution_group")
     if test_binding.value is not None and test_binding.value[0] == "fakeValues":
-        for x_what_binding in x_what_binding_list:
+        for x_what_binding in x_what_group_variable_values.solution_values:
             x_what_binding_value = x_what_binding.value[0]
             if hasattr(x_what_binding_value, "name") and x_what_binding_value.name == '/documents/file5.txt':
                 yield [state_list[0].record_operations([RespondOperation("I cannot copy that")])]
 
 
 @Predication(vocabulary, names=["solution_group"])
-def solution_group(state_list):
+def solution_group(state_list, has_more, variable_constraints):
     test_binding = state_list[0].get_binding("test_solution_group")
     if test_binding.value is not None:
         if test_binding.value[0] == "cannotAnswer":
@@ -65,44 +94,6 @@ def solution_group(state_list):
                     index += 1
                 yield new_group
                 yield True
-
-
-@Predication(vocabulary, names=["_this_q_dem"])
-def this_q_dem(state, x_variable_binding, h_rstr, h_body):
-    state = state.set_variable_data(x_variable_binding.variable.name,
-                                    quantifier=VariableCriteria(execution_context().current_predication(),
-                                                                x_variable_binding.variable.name,
-                                                                min_size=1,
-                                                                max_size=1,
-                                                                global_criteria=None))
-
-    # Call quantifier_raw() with a criteria_predication=in_scope so that it only allows
-    # items that are in scope
-    current_directory = state.user().current_directory()
-    # We are looking at the contained items in the user's current directory
-    # which is *not* the object in the binding. So: we need contained_items()
-    # to report an error that is not variable related, so we pass it None
-    contained_binding = VariableBinding(None, current_directory)
-    contained_items = set(current_directory.contained_items(contained_binding.variable))
-
-    def in_scope(state, x_binding):
-        def bound_variable(value):
-            # In scope if binding.value is the folder the user is in
-            # and anything in it
-            if value in contained_items or value == current_directory:
-                return True
-            else:
-                report_error(["valueIsNotValue", value, "this"])
-                return False
-
-        def unbound_variable():
-            for item in state.all_individuals():
-                if bound_variable(item):
-                    yield item
-
-        yield from combinatorial_predication_1(state, x_binding, bound_variable, unbound_variable)
-
-    yield from quantifier_raw(state, x_variable_binding, h_rstr, h_body, criteria_predication=in_scope)
 
 
 def variable_is_megabyte(binding):
@@ -156,8 +147,8 @@ def file_n_of(state, x_binding, i_binding):
     yield from combinatorial_predication_1(state, x_binding, bound_variable, unbound_variable)
 
 
-nouns_handled_directly = ["file", "folder"]
-def handles_noun(noun_lemma):
+nouns_handled_directly = ["file", "folder", "place"]
+def handles_noun(state, noun_lemma):
     return noun_lemma not in nouns_handled_directly
 
 
@@ -176,7 +167,7 @@ def noun_n_2(noun_type, state, x_binding, i_binding):
 
 @Predication(vocabulary, names=["match_all_n"], matches_lemma_function=handles_noun)
 def noun_n_1(noun_type, state, x_binding):
-    if noun_type not in nouns_handled_directly:
+    if x_binding.value is None and noun_type not in nouns_handled_directly:
         yield state.set_x(x_binding.variable.name, (noun_type,))
 
 
@@ -382,11 +373,6 @@ def in_p_loc_norm(state, e_introduced_binding, x_actor_binding, x_location_bindi
     yield from default_locative_preposition_norm(state, e_introduced_binding, x_actor_binding, x_location_binding)
 
 
-# @Predication(vocabulary, names=["solution_group__in_p_loc"])
-# def in_p_loc_group(state_list, e_introduced_binding_list, x_actor_binding_list, x_location_binding_list):
-#     yield []
-
-
 @Predication(vocabulary, names=["_in_p_loc"])
 def in_p_loc_open_ai(state, e_introduced_binding, x_actor_binding, x_location_binding):
     if x_actor_binding.value is not None and x_location_binding.value is not None and \
@@ -517,9 +503,13 @@ def loc_nonsp_size(state, e_introduced_binding, x_actor_binding, x_size_binding)
             return False
 
     def actor_unbound_criteria(size_set):
+        if False:
+            yield None
         assert False
 
     def size_unbound_criteria(actor_set):
+        if False:
+            yield None
         assert False
 
     # If a cardinal limiter like "together" is acting on this verb, it is unclear
