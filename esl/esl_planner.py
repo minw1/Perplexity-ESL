@@ -305,6 +305,9 @@ def satisfy_want(state, who, what):
         if sort_of(state, concept, "menu"):
             return [('get_menu', who)]
 
+        elif concept == "special":
+            return [('describe_item',"special")]
+
         elif sort_of(state, concept, "table"):
             return [('get_menu', who[0])]
 

@@ -176,6 +176,27 @@
             "Tree": "_the_q(x11,_salmon_n_1(x11),pronoun_q(x3,pron(x3),_want_v_1(e2,x3,x11)))",
             "Enabled": true,
             "ID": "3003a1eb-14b6-4dfe-9fe9-496d3a3e44a1"
+        },
+        {
+            "Command": "/reset",
+            "Expected": "",
+            "Tree": "None",
+            "Enabled": true,
+            "ID": "beb67c5e-49b3-47f5-aa93-d3dba5893a35"
+        },
+        {
+            "Command": "i want a table for two",
+            "Expected": "Host: Perfect! Please come right this way. The host shows you to a wooden table with a checkered tablecloth. A minute goes by, then your waiter arrives.\nWaiter: Hi there, can I get you something to eat?",
+            "Tree": "udef_q(x14,[generic_entity(x14), card(2,e20,x14)],pronoun_q(x3,pron(x3),_a_q(x8,[_table_n_1(x8), _for_p(e13,x8,x14)],_want_v_1(e2,x3,x8))))",
+            "Enabled": true,
+            "ID": "30c174f4-da73-494a-8fdc-2319b9e9d25f"
+        },
+        {
+            "Command": "i want a special",
+            "Expected": "The specials are <description>",
+            "Tree": "pronoun_q(x3,pron(x3),_a_q(x8,_special_n_1(x8),_want_v_1(e2,x3,x8)))",
+            "Enabled": true,
+            "ID": "6b5eaa96-0831-4869-9249-1c00bc4ea400"
         }
     ]
 }
