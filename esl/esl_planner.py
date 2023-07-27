@@ -298,7 +298,7 @@ def satisfy_want_group_group(state, group_who, group_what):
 def satisfy_want(state, who, what):
     if len(who) > 1 or len(what) > 1: return
 
-    if is_instance(state, what[0]):
+    if is_instance(state, what[0]): #TODO: Ask when could this be true
         # They are asking for a *particular instance of a table* (or whatever)
         # report an error if this is the best we can do
         return [('respond', "I'm sorry, we don't allow requesting specific things like that" + state.get_reprompt())]

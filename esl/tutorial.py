@@ -616,9 +616,9 @@ def _seat_v_cause(state, e_introduced_binding, x_actor_binding, x_object_binding
 
     yield from in_style_predication_2(state, x_actor_binding, x_object_binding, criteria_bound,
                                       wanters_of_obj, wanted_of_actor)
-@Predication(vocabulary, names=["solution_group__seat_v_cause","solution_group__seat_v_cause_requested"]) #TODO ASK about has_more
+@Predication(vocabulary, names=["solution_group__seat_v_cause","solution_group__seat_v_cause_requested"])
 def _seat_v_cause_group(state_list, has_more, e_introduced_binding, x_actor_variable_group, x_what_variable_group):
-    current_state = copy.deepcopy(state_list[0])  # TODO: ask why this is-- why can we ignore all the other states
+    current_state = copy.deepcopy(state_list[0])
     actor_values = [x.value for x in x_actor_variable_group.solution_values]
     current_state = do_task(current_state.world_state_frame(),
                             [('satisfy_want', [('user',)], [(Concept("table"),)])])
