@@ -127,6 +127,16 @@ def can_to_able_transitive_transformer():
     return TransformerMatch(name_pattern="_can_v_modal", args_pattern=["e", target], args_capture=["e1", None],
                             removed=["_can_v_modal"], production=production)
 
+#Convert "Can you seat me" to "you seat_reqeuested me"
+
+@Transform(vocabulary)
+def can_to_requested_transitive_transformer():
+    production = TransformerProduction(name="$|name|_requested", args={"ARG0": "$e1", "ARG1": "$x1", "ARG2": "$x2"})
+    target = TransformerMatch(name_pattern="*", name_capture="name", args_pattern=["e", "x", "x"],
+                              args_capture=[None, "x1", "x2"])
+    return TransformerMatch(name_pattern="_can_v_modal", args_pattern=["e", target], args_capture=["e1", None],
+                            removed=["_can_v_modal"], production=production)
+
 
 # Convert "I want to x y" to "I x_request y"
 @Transform(vocabulary)
@@ -593,7 +603,7 @@ def _show_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding, x_
                             ["user_wants_to_see", state.get_binding(x_object_binding.variable.name).value[0]]))
 
 
-@Predication(vocabulary, names=["_seat_v_cause"])
+@Predication(vocabulary, names=["_seat_v_cause","_seat_v_cause_requested"])
 def _seat_v_cause(state, e_introduced_binding, x_actor_binding, x_object_binding):
     def criteria_bound(x_actor, x_object):
         return is_user_type(x_object)
@@ -606,7 +616,7 @@ def _seat_v_cause(state, e_introduced_binding, x_actor_binding, x_object_binding
 
     yield from in_style_predication_2(state, x_actor_binding, x_object_binding, criteria_bound,
                                       wanters_of_obj, wanted_of_actor)
-@Predication(vocabulary, names=["solution_group__seat_v_cause"]) #TODO ASK about has_more
+@Predication(vocabulary, names=["solution_group__seat_v_cause","solution_group__seat_v_cause_requested"]) #TODO ASK about has_more
 def _seat_v_cause_group(state_list, has_more, e_introduced_binding, x_actor_variable_group, x_what_variable_group):
     current_state = copy.deepcopy(state_list[0])  # TODO: ask why this is-- why can we ignore all the other states
     actor_values = [x.value for x in x_actor_variable_group.solution_values]
