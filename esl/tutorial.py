@@ -509,7 +509,7 @@ def _want_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding):
 
 @Predication(vocabulary, names=["solution_group__want_v_1"])
 def want_group(state_list, has_more, e_introduced_binding_list, x_actor_variable_group, x_what_variable_group):
-    current_state = copy.deepcopy(state_list[0])
+    current_state = copy.deepcopy(state_list[0])  #TODO: ask why this is-- why can we ignore all the other states
 
     # This may be getting called with concepts or instances, before we call the planner
     # we need to decide if we have the requisite amount of them
@@ -595,9 +595,27 @@ def _show_v_1(state, e_introduced_binding, x_actor_binding, x_object_binding, x_
 
 @Predication(vocabulary, names=["_seat_v_cause"])
 def _seat_v_cause(state, e_introduced_binding, x_actor_binding, x_object_binding):
-    if is_user_type(state.get_binding(x_object_binding.variable.name).value[0]):
-        yield state.record_operations(state.handle_world_event(["user_wants", "table1"]))
+    def criteria_bound(x_actor, x_object):
+        return is_user_type(x_object)
 
+    def wanters_of_obj(x_object):
+        return #not currently going to support asking who is seating someone
+
+    def wanted_of_actor(x_actor):
+        return
+
+    yield from in_style_predication_2(state, x_actor_binding, x_object_binding, criteria_bound,
+                                      wanters_of_obj, wanted_of_actor)
+@Predication(vocabulary, names=["solution_group__seat_v_cause"]) #TODO ASK about has_more
+def _seat_v_cause_group(state_list, has_more, e_introduced_binding, x_actor_variable_group, x_what_variable_group):
+    current_state = copy.deepcopy(state_list[0])  # TODO: ask why this is-- why can we ignore all the other states
+    actor_values = [x.value for x in x_actor_variable_group.solution_values]
+    current_state = do_task(current_state.world_state_frame(),
+                            [('satisfy_want', [('user',)], [(Concept("table"),)])])
+    if current_state is None:
+        yield []
+    else:
+        yield [current_state]
 
 @Predication(vocabulary, names=["loc_nonsp"])
 def loc_nonsp(state, e_introduced_binding, x_actor_binding, x_loc_binding):
